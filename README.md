@@ -2,3 +2,5 @@
 Repo for the SoBA Dev project for Spring 2026.
 
 Ben Tirado
+
+Ian Dang
