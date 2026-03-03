@@ -5,4 +5,3 @@ Ben Tirado
 Ousmane Kone
 Wahid Haidari
 Ian Dang
-Nthati Lehloenya
