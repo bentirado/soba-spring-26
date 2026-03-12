@@ -1,0 +1,1 @@
+"""Configuration settings for the data_centralization_service that will load environment variables via Pydantic settings"""
