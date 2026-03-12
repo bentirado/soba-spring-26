@@ -1,0 +1,1 @@
+"""Configuration settings for the science_museum_data_pipeline that will load environment variables via Pydantic settings"""
