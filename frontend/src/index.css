@@ -1,68 +1,170 @@
 :root {
+  /* Science Museum of Oklahoma palette — light mode defaults */
+  --bg: #f8fafb;           /* Main app background (light gray-blue) */
+  --card-bg: #ffffff;      /* White cards for content */
+  --surface: #f3f6f9;      /* Input / subtle surfaces */
+  --muted-bg: #e8eff5;     /* Muted background */
+
+  --text: #0b1220;         /* fallback dark text (hex approximating oklch) */
+  --muted: #5c6c7d;        /* secondary/helper text */
+
+  /* Brand / semantic */
+  --primary: #1e5eb8;      /* Primary Blue */
+  --primary-600: #164a8f;  /* darker primary for hover */
+  --secondary: #ff7b3f;    /* Secondary Orange */
+  --accent-green: #2ea86f; /* Success */
+
+  --chart-1: #1e5eb8;
+  --chart-2: #ff7b3f;
+  --chart-3: #2ea86f;
+  --chart-4: #4a9dd9;
+  --chart-5: #ffad7a;
+
+  --border: rgba(30,94,184,0.15);
+  --danger: #d4183d;
+  --switch-bg: #a8c5e6;
+  /* Sidebar colors */
+  --sidebar-bg: #1a4a8f;
+  --sidebar-accent: #2a5fa0;
+  --sidebar-primary: #ff7b3f;
+  /* input background token */
+  --input-bg: #f3f6f9;
+
   font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
   line-height: 1.5;
   font-weight: 400;
-
-  color-scheme: light dark;
-  color: rgba(255, 255, 255, 0.87);
-  background-color: #242424;
-
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+  color-scheme: light;
 }
 
-a {
-  font-weight: 500;
-  color: #646cff;
-  text-decoration: inherit;
-}
-a:hover {
-  color: #535bf2;
+/* NOTE: dark-mode overrides removed to keep app in the light palette by default.
+   If you want to enable dark mode following user/system preference, we can
+   re-enable these overrides or add a `.dark` class on the root to toggle it. */
+
+* { box-sizing: border-box; }
+
+html, body, #root {
+  height: 100%;
 }
 
 body {
   margin: 0;
-  display: flex;
-  place-items: center;
+  background: var(--bg);
+  color: var(--text);
   min-width: 320px;
-  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+a:hover { color: var(--primary-600); }
+
+/* Layout */
+.app-shell {
+  /* Full-viewport app frame */
+  width: 100%;
+  max-width: none;
+  height: 100vh;
+  margin: 0;
+  padding: 1.25rem 1.5rem;
+  display: flex;
+  flex-direction: column;
 }
 
-h1 {
-  font-size: 3.2em;
-  line-height: 1.1;
+.app-shell main {
+  flex: 1 1 auto;
+  overflow: auto;
 }
 
-button {
+/* Navbar */
+.navbar {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  padding: 0.6rem 0.75rem;
+  background: linear-gradient(90deg, rgba(255,255,255,0.02), transparent);
   border-radius: 8px;
-  border: 1px solid transparent;
-  padding: 0.6em 1.2em;
-  font-size: 1em;
+  margin-bottom: 1rem;
+  width: 100%;
+  box-sizing: border-box;
+  position: sticky;
+  top: 0;
+  z-index: 30;
+}
+.nav-link.active {
+  color: var(--text);
+  background: rgba(30,94,184,0.08);
+  border: 1px solid var(--border);
+}
+.navbar .brand {
+  font-weight: 700;
+  margin-right: auto;
+}
+.nav-link {
+  color: var(--muted);
+  padding: 0.4rem 0.6rem;
+  border-radius: 6px;
   font-weight: 500;
-  font-family: inherit;
-  background-color: #1a1a1a;
-  cursor: pointer;
-  transition: border-color 0.25s;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
 }
-button:hover {
-  border-color: #646cff;
-}
-button:focus,
-button:focus-visible {
-  outline: 4px auto -webkit-focus-ring-color;
+.nav-link.active {
+  color: var(--text);
+  background: rgba(100,108,255,0.12);
+  border: 1px solid rgba(100,108,255,0.12);
 }
 
-@media (prefers-color-scheme: light) {
-  :root {
-    color: #213547;
-    background-color: #ffffff;
-  }
-  a:hover {
-    color: #747bff;
-  }
-  button {
-    background-color: #f9f9f9;
-  }
+.nav-link:hover {
+  text-decoration: none;
+  color: var(--primary-600);
+}
+
+/* Card */
+.card {
+  background: var(--card-bg);
+  padding: 1rem;
+  border-radius: 10px;
+  box-shadow: 0 6px 18px rgba(2,6,23,0.06);
+  border: 1px solid var(--border);
+  color: var(--text);
+}
+
+/* Grid */
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1rem;
+}
+
+.chart-grid {
+  grid-template-columns: 1fr 1fr 1fr;
+}
+
+.chart {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.chart-title {
+  font-weight: 600;
+  color: var(--muted);
+  font-size: 0.95rem;
+}
+
+.chart-placeholder {
+  height: 180px;
+  background: linear-gradient(180deg, var(--surface), var(--muted-bg));
+  border-radius: 8px;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+}
+
+/* Utility */
+.h1 {
+  margin: 0 0 1rem 0;
+  font-size: 1.8rem;
+}
+.meta {
+  color: var(--muted);
+  font-size: 0.95rem;
 }
