@@ -1,6 +1,11 @@
 import { NavLink } from "react-router-dom";
 
-export default function Navbar() {
+type Props = {
+  isOpen: boolean;
+  onLinkClick?: () => void;
+};
+
+export default function Navbar({ isOpen, onLinkClick }: Props) {
   const links = [
     { to: "/", label: "Dashboard" },
     { to: "/volunteers", label: "Volunteers" },
@@ -11,20 +16,29 @@ export default function Navbar() {
   ];
 
   return (
-    <nav className="navbar">
-      <div className="brand">SoBA</div>
+    <aside className={`sidebar ${isOpen ? "open" : "closed"}`}>
+      <div className="sidebar-brand">Science Museum of Oklahoma</div>
 
-      {links.map((l) => (
-        <NavLink
-          key={l.to}
-          to={l.to}
-          className={({ isActive }) =>
-            `nav-link${isActive ? " active" : ""}`
-          }
-        >
-          {l.label}
-        </NavLink>
-      ))}
-    </nav>
+      <nav className="sidebar-links">
+        {links.map((l) => (
+          <NavLink
+            key={l.to}
+            to={l.to}
+            className={({ isActive }) =>
+              `sidebar-link${isActive ? " active" : ""}`
+            }
+            onClick={() => onLinkClick && onLinkClick()}
+          >
+            <span className="link-icon" aria-hidden>
+              {/* simple small circle icon instead of a big letter */}
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden>
+                <circle cx="6" cy="6" r="5" fill="rgba(255,255,255,0.9)" />
+              </svg>
+            </span>
+            <span className="link-label">{l.label}</span>
+          </NavLink>
+        ))}
+      </nav>
+    </aside>
   );
 }
