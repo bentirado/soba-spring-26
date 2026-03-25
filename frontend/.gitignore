@@ -46,3 +46,6 @@ Thumbs.db
 
 # TypeScript build cache
 *.tsbuildinfo
+
+package.json
+package-lock.json
