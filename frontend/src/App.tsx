@@ -1,9 +1,9 @@
-import { useEffect, useState } from "react";
+import Dashboard from "./components/Dashboard";
 
 function App() {
   return (
-    <div style={{ padding: "2rem", fontFamily: "Arial" }}>
-      <h1>SoBA Data Analytics App</h1>
+    <div>
+      <Dashboard />
     </div>
   );
 }
