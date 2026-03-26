@@ -49,8 +49,8 @@ export default function Dashboard() {
   // Store the selected chart type for the gender chart.
   const [genderChartType, setGenderChartType] = useState<"pie" | "bar" | "horizontal">("pie");
   // Store the selected date range for filtering the gender chart.
-  const [genderStartMonth, setGenderStartMonth] = useState("2024-01");
-  const [genderEndMonth, setGenderEndMonth] = useState("2024-05");
+  const [genderStartMonth, setGenderStartMonth] = useState("");
+  const [genderEndMonth, setGenderEndMonth] = useState("");
   // Store pie chart data from the backend.
   const [genderBreakdownData, setGenderBreakdownData] = useState<GenderBreakdownPoint[]>([]);
 
@@ -67,8 +67,8 @@ export default function Dashboard() {
   const [lastActivityChartType, setLastActivityChartType] = useState<"line" | "bar" | "area">("line");
 
   // Store the selected date range for filtering the last-activity chart.
-  const [startMonth, setStartMonth] = useState("2024-01");
-  const [endMonth, setEndMonth] = useState("2024-05");
+  const [startMonth, setStartMonth] = useState("");
+  const [endMonth, setEndMonth] = useState("");
 
   // Store the selected chart type for the city chart.
   const [cityChartType, setCityChartType] = useState<"vertical" | "horizontal" | "pie">("vertical");

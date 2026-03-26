@@ -16,9 +16,11 @@ import random
 import sys
 from datetime import date, datetime, timedelta, timezone
 
+
 import psycopg2
 from dotenv import load_dotenv
 from faker import Faker
+
 
 # ---------------------------------------------------------------------------
 # Setup
@@ -326,26 +328,29 @@ def insert_volunteers(cur) -> list[int]:
         hispanic_latino = "Yes" if ethnicity == "Hispanic or Latino" else random.choices(["Yes", "No"], weights=[0.10, 0.90], k=1)[0]
         dietary = random.choices(DIETARY_OPTIONS, weights=DIETARY_WEIGHTS, k=1)[0]
         joined_date = random_date_between(date(2019, 1, 1), date(2025, 6, 1))
+        life_hours = round(random.uniform(1.0, 250.0), 1)
+        last_activity = random_date_between(joined_date, date(2026, 3, 1))
         is_active = random.random() < 0.80
         volgistics_id = random.randint(100000, 999999)
         notes = fake.sentence() if random.random() < 0.3 else None
 
         cur.execute(
             """
-            INSERT INTO volunteers
-                (first_name, last_name, email, phone, city, state, zip, age, age_group,
-                 gender, ethnicity, hispanic_latino, dietary_restrictions,
-                 joined_date, is_active, volgistics_id, notes)
+            INSERT INTO volunteers (
+                first_name, last_name, email, phone, city, state, zip, age, age_group,
+                gender, ethnicity, hispanic_latino, dietary_restrictions,
+                joined_date, life_hours, last_activity, is_active, volgistics_id, notes
+            )
             VALUES
                 (%s, %s, %s, %s, %s, 'OK', %s, %s, %s,
                  %s, %s, %s, %s,
-                 %s, %s, %s, %s)
+                 %s, %s, %s, %s, %s, %s)
             RETURNING id
             """,
             (
                 first, last, email, phone, city, zip_code, age, age_group,
                 gender, ethnicity, hispanic_latino, dietary,
-                joined_date, is_active, volgistics_id, notes,
+                joined_date, life_hours, last_activity, is_active, volgistics_id, notes,
             ),
         )
         ids.append(cur.fetchone()[0])
