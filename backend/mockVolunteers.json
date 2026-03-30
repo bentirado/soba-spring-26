@@ -1,6 +1,9 @@
 [
   {
     "id": 1,
+    "first_name": "John",
+    "last_name": "Doe",
+    "email": "johndoe@gmail.com",
     "city": "Edmond",
     "state": "OK",
     "zip": "73013",
@@ -15,6 +18,9 @@
   },
   {
     "id": 2,
+    "first_name": "Sakura",
+    "last_name": "Tanaka",
+    "email": "sakuratanaka@gmail.com",
     "city": "Norman",
     "state": "OK",
     "zip": "73069",
@@ -29,6 +35,9 @@
   },
   {
     "id": 3,
+    "first_name": "Ahmad",
+    "last_name": "Saleh",
+    "email": "ahmadsaleh@gmail.com",
     "city": "Oklahoma City",
     "state": "OK",
     "zip": "73112",
@@ -43,6 +52,9 @@
   },
   {
     "id": 4,
+    "first_name": "Olivia",
+    "last_name": "Smith",
+    "email": "oliviasmith@gmail.com",
     "city": "Moore",
     "state": "OK",
     "zip": "73160",
@@ -57,6 +69,9 @@
   },
   {
     "id": 5,
+    "first_name": "James",
+    "last_name": "Smith",
+    "email": "jamessmith@gmail.com",
     "city": "Yukon",
     "state": "OK",
     "zip": "73099",
@@ -71,6 +86,9 @@
   },
   {
     "id": 6,
+    "first_name": "Sofia",
+    "last_name": "Garcia",
+    "email": "sofiagarcia@gmail.com",
     "city": "Bethany",
     "state": "OK",
     "zip": "73008",
@@ -85,6 +103,9 @@
   },
   {
     "id": 7,
+    "first_name": "Robert",
+    "last_name": "Williams",
+    "email": "robertwilliams@gmail.com",
     "city": "Midwest City",
     "state": "OK",
     "zip": "73110",
@@ -99,6 +120,9 @@
   },
   {
     "id": 8,
+    "first_name": "Emma",
+    "last_name": "Williams",
+    "email": "emmawilliams@gmail.com",
     "city": "Mustang",
     "state": "OK",
     "zip": "73064",
@@ -113,6 +137,9 @@
   },
   {
     "id": 9,
+    "first_name": "Wei",
+    "last_name": "Chen",
+    "email": "weichen@gmail.com",
     "city": "Stillwater",
     "state": "OK",
     "zip": "74074",
@@ -127,6 +154,9 @@
   },
   {
     "id": 10,
+    "first_name": "Sara",
+    "last_name": "Jones",
+    "email": "sarajones@gmail.com",
     "city": "Tulsa",
     "state": "OK",
     "zip": "74105",
