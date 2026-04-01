@@ -1,6 +1,4 @@
 from fastapi import FastAPI
-import json
-from pathlib import Path
 from mock_data.overview import build_overview
 from fastapi.middleware.cors import CORSMiddleware
 from typing import Optional
@@ -16,14 +14,6 @@ from mock_data.charts import (
     volunteers_by_gender,
     volunteers_by_city,
 )
-
-
-VOLUNTEERS_FILE = Path(__file__).parent / "mockVolunteers.json"
-
-# Load volunteer records from the shared mock JSON file.
-def load_volunteers():
-    with open(VOLUNTEERS_FILE, "r") as f:
-        return json.load(f)
     
 async def load_volunteers_from_db(db: AsyncSession):
     result = await db.execute(select(Volunteer))

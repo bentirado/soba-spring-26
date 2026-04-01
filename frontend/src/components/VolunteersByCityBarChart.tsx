@@ -39,49 +39,42 @@ export default function VolunteersByCityBarChart({ data, chartType }: Volunteers
   return (
     <div className="mt-6 h-80">
       {/* Responsive container makes the chart resize nicely */}
-      {/* Responsive container makes the chart resize nicely */}
       <ResponsiveContainer width="100%" height="100%">
-        <>
-          {/* Vertical column chart */}
-          {chartType === "vertical" && (
-            <BarChart data={data}>
-              {/* Background grid lines */}
-              <CartesianGrid strokeDasharray="3 3" />
+        {chartType === "vertical" ? (
+          <BarChart data={data}>
+            {/* Background grid lines */}
+            <CartesianGrid strokeDasharray="3 3" />
 
-              {/* X-axis uses the city field */}
-              <XAxis dataKey="city" />
+            {/* X-axis uses the city field */}
+            <XAxis dataKey="city" />
 
-              {/* Y-axis uses whole numbers only */}
-              <YAxis allowDecimals={false} />
+            {/* Y-axis uses whole numbers only */}
+            <YAxis allowDecimals={false} />
 
-              {/* Tooltip appears on hover */}
-              <Tooltip />
+            {/* Tooltip appears on hover */}
+            <Tooltip />
 
-              {/* Main bars showing volunteer counts by city */}
-              <Bar dataKey="count" fill="#10b981" radius={[6, 6, 0, 0]} />
-            </BarChart>
-          )}
+            {/* Main bars showing volunteer counts by city */}
+            <Bar dataKey="count" fill="#10b981" radius={[6, 6, 0, 0]} />
+          </BarChart>
+        ) : (
+          <BarChart data={data} layout="vertical" margin={{ top: 8, right: 16, left: 24, bottom: 8 }}>
+            {/* Background grid lines */}
+            <CartesianGrid strokeDasharray="3 3" />
 
-          {/* Horizontal bar chart */}
-          {chartType === "horizontal" && (
-            <BarChart data={data} layout="vertical" margin={{ top: 8, right: 16, left: 24, bottom: 8 }}>
-              {/* Background grid lines */}
-              <CartesianGrid strokeDasharray="3 3" />
+            {/* X-axis becomes the numeric axis in horizontal mode */}
+            <XAxis type="number" allowDecimals={false} />
 
-              {/* X-axis becomes the numeric axis in horizontal mode */}
-              <XAxis type="number" allowDecimals={false} />
+            {/* Y-axis uses the city field in horizontal mode */}
+            <YAxis type="category" dataKey="city" width={100} />
 
-              {/* Y-axis uses the city field in horizontal mode */}
-              <YAxis type="category" dataKey="city" width={100} />
+            {/* Tooltip appears on hover */}
+            <Tooltip />
 
-              {/* Tooltip appears on hover */}
-              <Tooltip />
-
-              {/* Main horizontal bars showing volunteer counts by city */}
-              <Bar dataKey="count" fill="#10b981" radius={[0, 6, 6, 0]} />
-            </BarChart>
-          )}
-        </>
+            {/* Main horizontal bars showing volunteer counts by city */}
+            <Bar dataKey="count" fill="#10b981" radius={[0, 6, 6, 0]} />
+          </BarChart>
+        )}
       </ResponsiveContainer>
     </div>
   );
