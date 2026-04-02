@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type ChangeEvent } from "react";
+import Dashboard from "@/components/Dashboard";
 import { StatCard } from "@/components/shared/StatCard";
 import {
   Users,
@@ -418,7 +419,7 @@ export function Overview() {
           iconColor="bg-blue-600"
         />
       </div>
-
+      <Dashboard/>
       {/* Top row: requested graphs */}
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
         {/* Volunteer Engagement Trends */}
