@@ -168,6 +168,13 @@ export default function Dashboard() {
     fetchDashboardData();
   }, [apiBaseUrl, genderStartMonth, genderEndMonth]);
 
+  console.log("Dashboard render", {
+    overview,
+    lastActivityData,
+    genderData,
+    cityData,
+  });
+
   return (
     <div className="min-h-screen bg-slate-100 px-6 py-8">
       <div className="mx-auto max-w-7xl">
