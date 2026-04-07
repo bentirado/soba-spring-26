@@ -3,6 +3,7 @@ import StatCard from "./StatCard";
 import LastActivityChart from "./LastActivityChart";
 import VolunteersByGenderPieChart from "./VolunteersByGenderPieChart";
 import VolunteersByCityBarChart from "./VolunteersByCityBarChart";
+import { Chatbot } from "./Chatbot";
 
 // Type for the overview data returned by the backend.
 type OverviewData = {
@@ -301,6 +302,8 @@ export default function Dashboard() {
             <VolunteersByGenderPieChart data={filteredGenderData} chartType={genderChartType} />
           </div>
         </div>
+        {/* Chatbot (floating) - renders a floating toggle button and chat window */}
+        <Chatbot />
       </div>
     </div>
   );
