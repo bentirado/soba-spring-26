@@ -52,8 +52,6 @@ export default function Dashboard() {
   // Store the selected date range for filtering the gender chart.
   const [genderStartMonth, setGenderStartMonth] = useState("");
   const [genderEndMonth, setGenderEndMonth] = useState("");
-  // Store pie chart data from the backend.
-  const [genderBreakdownData, setGenderBreakdownData] = useState<GenderBreakdownPoint[]>([]);
 
   // Store city bar chart data from the backend.
   const [cityData, setCityData] = useState<CityBreakdownPoint[]>([]);
@@ -75,18 +73,16 @@ export default function Dashboard() {
   const [cityChartType, setCityChartType] = useState<"vertical" | "horizontal" | "pie">("vertical");
 
   // Filter last-activity data based on the selected start and end month.
-  const filteredLastActivityData = lastActivityData.filter((item) => {
+  // Use an empty array as a fallback in case the value is ever null.
+  const filteredLastActivityData = (lastActivityData ?? []).filter((item) => {
     const isAfterStart = !startMonth || item.month >= startMonth;
     const isBeforeEnd = !endMonth || item.month <= endMonth;
     return isAfterStart && isBeforeEnd;
   });
 
-  // Filter gender chart data based on the selected start and end month.
-  // This uses the month values already returned by the backend chart data shape.
-  const filteredGenderData = genderData.filter((item) => {
-    // Gender chart data itself does not include month, so we need to filter
-    // from the raw volunteer dataset if we want true date filtering.
-    // For now, this placeholder keeps the existing gender data unchanged.
+  // Filter gender chart data safely.
+  // Use an empty array as a fallback in case the value is ever null.
+  const filteredGenderData = (genderData ?? []).filter((_item) => {
     return true;
   });
 
@@ -225,13 +221,23 @@ export default function Dashboard() {
               {/* Start month filter */}
               <div className="flex flex-col">
                 <label className="mb-1 text-sm font-medium text-slate-700">Start Month</label>
-                <input type="month" value={startMonth} onChange={(e) => setStartMonth(e.target.value)} className="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm" />
+                <input
+                  type="month"
+                  value={startMonth}
+                  onChange={(e) => setStartMonth(e.target.value)}
+                  className="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm"
+                />
               </div>
 
               {/* End month filter */}
               <div className="flex flex-col">
                 <label className="mb-1 text-sm font-medium text-slate-700">End Month</label>
-                <input type="month" value={endMonth} onChange={(e) => setEndMonth(e.target.value)} className="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm" />
+                <input
+                  type="month"
+                  value={endMonth}
+                  onChange={(e) => setEndMonth(e.target.value)}
+                  className="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm"
+                />
               </div>
             </div>
 
@@ -248,7 +254,7 @@ export default function Dashboard() {
               <label className="mb-1 text-sm font-medium text-slate-700">Chart Type</label>
               <select
                 value={cityChartType}
-                onChange={(e) => setCityChartType(e.target.value as "vertical" | "horizontal")}
+                onChange={(e) => setCityChartType(e.target.value as "vertical" | "horizontal" | "pie")}
                 className="w-full max-w-xs rounded-md border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm"
               >
                 <option value="vertical">Column Chart</option>
@@ -295,7 +301,12 @@ export default function Dashboard() {
               {/* End month filter */}
               <div className="flex flex-col">
                 <label className="mb-1 text-sm font-medium text-slate-700">End Month</label>
-                <input type="month" value={genderEndMonth} onChange={(e) => setGenderEndMonth(e.target.value)} className="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm" />
+                <input
+                  type="month"
+                  value={genderEndMonth}
+                  onChange={(e) => setGenderEndMonth(e.target.value)}
+                  className="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm"
+                />
               </div>
             </div>
 

@@ -1,26 +1,20 @@
-from fastapi import FastAPI
-from mock_data.overview import build_overview
+from fastapi import FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from typing import Optional
-from fastapi import Depends
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from database.connection import get_db
 from database.models import Volunteer
-from fastapi import Depends
-from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
-
-from database.connection import get_db
-from database.models import Volunteer
-
+from mock_data.overview import build_overview
 from mock_data.charts import (
     volunteers_by_last_activity_month,
     volunteers_by_gender,
     volunteers_by_city,
 )
-    
+
+# Load volunteers from PostgreSQL and convert them into plain dictionaries
+# that match the shape expected by the existing chart/overview helpers.
 async def load_volunteers_from_db(db: AsyncSession):
     result = await db.execute(select(Volunteer))
     volunteers = result.scalars().all()
@@ -48,7 +42,6 @@ async def load_volunteers_from_db(db: AsyncSession):
 
 app = FastAPI()
 
-# Allow the frontend dev server to call the backend during local development.
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
@@ -66,61 +59,28 @@ def health_check():
 
 
 # Return the dashboard overview using volunteer data from PostgreSQL.
-# Return the dashboard overview using volunteer data from PostgreSQL.
 @app.get("/api/overview")
 async def get_dashboard_overview(db: AsyncSession = Depends(get_db)):
-    # Load all volunteers from the real database.
     volunteers = await load_volunteers_from_db(db)
-async def get_dashboard_overview(db: AsyncSession = Depends(get_db)):
-    # Load all volunteers from the real database.
-    volunteers = await load_volunteers_from_db(db)
-
-    # Reuse the existing overview helper so the response shape stays the same.
-    # Reuse the existing overview helper so the response shape stays the same.
     return build_overview(volunteers)
 
 
-# Return chart data for volunteer last activity by month
-# using volunteer records from PostgreSQL.
-# Return chart data for volunteer last activity by month
-# using volunteer records from PostgreSQL.
+# Return chart data for volunteer last activity by month.
 @app.get("/api/charts/last-activity-by-month")
 async def get_last_activity_by_month(db: AsyncSession = Depends(get_db)):
-    # Load volunteer records from the real database.
     volunteers = await load_volunteers_from_db(db)
-
-    # Reuse the existing grouping helper so the response shape stays the same.
-async def get_last_activity_by_month(db: AsyncSession = Depends(get_db)):
-    # Load volunteer records from the real database.
-    volunteers = await load_volunteers_from_db(db)
-
-    # Reuse the existing grouping helper so the response shape stays the same.
     return volunteers_by_last_activity_month(volunteers)
 
 
-
-
-
-
 # Return chart data showing the number of volunteers in each gender group.
-# Optional start/end month filters can be used to narrow the data range.
 @app.get("/api/charts/volunteers-by-gender")
 async def get_volunteers_by_gender(
     start: Optional[str] = None,
     end: Optional[str] = None,
     db: AsyncSession = Depends(get_db),
 ):
-    # Load volunteer records from the real database.
-    volunteers = await load_volunteers_from_db(db)
-async def get_volunteers_by_gender(
-    start: Optional[str] = None,
-    end: Optional[str] = None,
-    db: AsyncSession = Depends(get_db),
-):
-    # Load volunteer records from the real database.
     volunteers = await load_volunteers_from_db(db)
 
-    # If a start or end month is provided, filter volunteers by last_activity month.
     if start or end:
         filtered_volunteers = []
 
@@ -129,7 +89,6 @@ async def get_volunteers_by_gender(
             if not last_activity:
                 continue
 
-            # Extract the year-month part from the full date (YYYY-MM-DD -> YYYY-MM).
             month = last_activity[:7]
 
             is_after_start = not start or month >= start
@@ -142,6 +101,7 @@ async def get_volunteers_by_gender(
 
     return volunteers_by_gender(volunteers)
 
+
 # Return chart data showing the number of volunteers in each city.
 @app.get("/api/charts/volunteers-by-city")
 async def get_volunteers_by_city(
@@ -149,15 +109,5 @@ async def get_volunteers_by_city(
     end: Optional[str] = None,
     db: AsyncSession = Depends(get_db),
 ):
-    # Load volunteer records from the real database.
     volunteers = await load_volunteers_from_db(db)
-
-async def get_volunteers_by_city(
-    start: Optional[str] = None,
-    end: Optional[str] = None,
-    db: AsyncSession = Depends(get_db),
-):
-    # Load volunteer records from the real database.
-    volunteers = await load_volunteers_from_db(db)
-
     return volunteers_by_city(volunteers)

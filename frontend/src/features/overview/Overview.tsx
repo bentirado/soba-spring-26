@@ -1,6 +1,15 @@
 import { useEffect, useRef, useState, type ChangeEvent } from "react";
+import * as XLSX from "xlsx";
 import Dashboard from "@/components/Dashboard";
 import { StatCard } from "@/components/shared/StatCard";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   Users,
   DollarSign,
@@ -96,6 +105,24 @@ const chartOptions = [
 
 type MetricValue = (typeof metricOptions)[number]["value"];
 type ChartValue = (typeof chartOptions)[number]["value"];
+type SpreadsheetRow = Record<string, unknown>;
+
+const parseSpreadsheetFile = async (file: File): Promise<SpreadsheetRow[]> => {
+  const buffer = await file.arrayBuffer();
+  const workbook = XLSX.read(buffer, { type: "array" });
+  const firstSheetName = workbook.SheetNames[0];
+
+  if (!firstSheetName) {
+    return [];
+  }
+
+  const worksheet = workbook.Sheets[firstSheetName];
+
+  return XLSX.utils.sheet_to_json<SpreadsheetRow>(worksheet, {
+    defval: "",
+    raw: false,
+  });
+};
 
 export function Overview() {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -105,6 +132,9 @@ export function Overview() {
   const chartDropdownRef = useRef<HTMLDivElement | null>(null);
 
   const [selectedFileName, setSelectedFileName] = useState("");
+  const [pendingUploadRows, setPendingUploadRows] = useState<SpreadsheetRow[]>([]);
+  const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false);
+  const [uploadErrorMessage, setUploadErrorMessage] = useState("");
   const [dataActionsOpen, setDataActionsOpen] = useState(false);
   const [rangeOpen, setRangeOpen] = useState(false);
   const [metricOpen, setMetricOpen] = useState(false);
@@ -117,6 +147,13 @@ export function Overview() {
   const handleUploadClick = () => {
     fileInputRef.current?.click();
     setDataActionsOpen(false);
+  };
+
+  const resetPendingUpload = () => {
+    setSelectedFileName("");
+    setPendingUploadRows([]);
+    setUploadErrorMessage("");
+    setIsUploadDialogOpen(false);
   };
 
   const handleExportClick = () => {
@@ -132,12 +169,39 @@ export function Overview() {
     console.log("AI Assistant clicked");
   };
 
-  const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
-    if (!file) return;
+    if (!file) {
+      return;
+    }
 
-    setSelectedFileName(file.name);
-    console.log("Selected file:", file.name);
+    try {
+      const parsedRows = await parseSpreadsheetFile(file);
+
+      setSelectedFileName(file.name);
+      setPendingUploadRows(parsedRows);
+      setUploadErrorMessage("");
+      setIsUploadDialogOpen(true);
+    } catch (error) {
+      setSelectedFileName(file.name);
+      setPendingUploadRows([]);
+      setIsUploadDialogOpen(true);
+      console.error("Failed to parse uploaded spreadsheet:", error);
+      setUploadErrorMessage("We couldn't read that spreadsheet. Please try another file.");
+    } finally {
+      event.target.value = "";
+    }
+  };
+
+  const handleUploadSave = () => {
+    console.log("Selected file:", selectedFileName);
+    console.log("Parsed spreadsheet data:", pendingUploadRows);
+    console.table(pendingUploadRows);
+    resetPendingUpload();
+  };
+
+  const handleUploadReplace = () => {
+    fileInputRef.current?.click();
   };
 
   useEffect(() => {
@@ -379,10 +443,77 @@ export function Overview() {
       <input
         ref={fileInputRef}
         type="file"
-        accept=".csv"
+        accept=".xlsx,.xls,.csv"
         onChange={handleFileChange}
         className="hidden"
       />
+
+      <Dialog
+        open={isUploadDialogOpen}
+        onOpenChange={(open) => {
+          if (open) {
+            setIsUploadDialogOpen(true);
+            return;
+          }
+
+          resetPendingUpload();
+        }}
+      >
+        <DialogContent className="max-w-3xl border-gray-200 bg-white">
+          <DialogHeader>
+            <DialogTitle>Review Uploaded Data</DialogTitle>
+            <DialogDescription>
+              {uploadErrorMessage
+                ? uploadErrorMessage
+                : "Choose what you'd like to do with the selected spreadsheet."}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div className="rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-700">
+              <p>
+                <span className="font-medium text-gray-900">File:</span> {selectedFileName || "No file selected"}
+              </p>
+              {!uploadErrorMessage && (
+                <p>
+                  <span className="font-medium text-gray-900">Rows parsed:</span> {pendingUploadRows.length}
+                </p>
+              )}
+            </div>
+
+            {!uploadErrorMessage && pendingUploadRows.length === 0 && (
+              <div className="rounded-lg border border-dashed border-gray-300 px-4 py-6 text-sm text-gray-500">
+                No rows were found in the selected sheet.
+              </div>
+            )}
+          </div>
+
+          <DialogFooter>
+            <button
+              type="button"
+              onClick={resetPendingUpload}
+              className="rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={handleUploadReplace}
+              className="rounded-lg border border-blue-200 bg-blue-50 px-4 py-2 text-sm font-medium text-blue-700 transition hover:bg-blue-100"
+            >
+              Upload New Data
+            </button>
+            <button
+              type="button"
+              onClick={handleUploadSave}
+              disabled={Boolean(uploadErrorMessage)}
+              className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-blue-300"
+            >
+              Save
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Main stats */}
       <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-4">
