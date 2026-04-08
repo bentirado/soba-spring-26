@@ -294,7 +294,6 @@ import {
   Users,
   Award,
   Presentation,
-  DollarSign,
   TrendingUp,
   Menu,
   Bell,
@@ -311,7 +310,6 @@ export function DashboardLayout() {
     { name: "Volunteers", href: "/volunteers", icon: Users, disabled: false },
     { name: "Recognition", href: "/recognition", icon: Award, disabled: false },
     { name: "Exhibitions", href: "/exhibitions", icon: Presentation, disabled: true },
-    { name: "Revenue", href: "/revenue", icon: DollarSign, disabled: true },
   ];
 
   const handleLogout = () => {
