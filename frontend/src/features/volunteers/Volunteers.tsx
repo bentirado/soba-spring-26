@@ -1,28 +1,7 @@
-import { StatCard } from "@/components/shared/StatCard";
-import {
-  Users,
-  Clock,
-  CalendarDays,
-  HeartHandshake,
-  Trophy,
-  Download,
-  Star,
-} from "lucide-react";
-import {
-  AreaChart,
-  Area,
-  BarChart,
-  Bar,
-  PieChart,
-  Pie,
-  Cell,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
-  ResponsiveContainer,
-} from "recharts";
+import { StatCard } from "../../components/shared/StatCard";
+import { Users, Clock, CalendarDays, HeartHandshake, Trophy, Download, Star } from "lucide-react";
+import { AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
+import Dashboard from "../../components/Dashboard";
 
 const attendanceData = [
   { month: "Jan", recurring: 100, newVolunteers: 120 },
@@ -114,12 +93,8 @@ export function Volunteers() {
       {/* Header */}
       <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
         <div>
-          <h1 className="text-2xl font-semibold mb-2 text-gray-900">
-            Volunteers Directory & Trends
-          </h1>
-          <p className="text-sm text-gray-500">
-            Analyze volunteer demographics, retention, and top contributors.
-          </p>
+          <h1 className="text-2xl font-semibold mb-2 text-gray-900">Volunteers Directory & Trends</h1>
+          <p className="text-sm text-gray-500">Analyze volunteer demographics, retention, and top contributors.</p>
         </div>
 
         <div className="flex items-center gap-3">
@@ -135,30 +110,9 @@ export function Volunteers() {
 
       {/* Stats Grid */}
       <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-4">
-        <StatCard
-          title="Total Volunteers"
-          value="342"
-          change="+5.2% vs last month"
-          changeType="positive"
-          icon={Users}
-          iconColor="bg-[#1f4f99]"
-        />
-        <StatCard
-          title="Hours Logged"
-          value="1,250"
-          change="+8.2% vs last month"
-          changeType="positive"
-          icon={Clock}
-          iconColor="bg-[#ff7a3d]"
-        />
-        <StatCard
-          title="Active Events"
-          value="12"
-          change="-2.4% vs last month"
-          changeType="negative"
-          icon={CalendarDays}
-          iconColor="bg-[#2fb36f]"
-        />
+        <StatCard title="Total Volunteers" value="342" change="+5.2% vs last month" changeType="positive" icon={Users} iconColor="bg-[#1f4f99]" />
+        <StatCard title="Hours Logged" value="1,250" change="+8.2% vs last month" changeType="positive" icon={Clock} iconColor="bg-[#ff7a3d]" />
+        <StatCard title="Active Events" value="12" change="-2.4% vs last month" changeType="negative" icon={CalendarDays} iconColor="bg-[#2fb36f]" />
         <StatCard
           title="Community Impact"
           value="3.2k"
@@ -171,12 +125,8 @@ export function Volunteers() {
 
       {/* Attendance Breakdown - full width */}
       <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
-        <h3 className="mb-1 text-xl font-semibold text-gray-900">
-          Attendance Breakdown
-        </h3>
-        <p className="mb-4 text-sm text-gray-500">
-          New vs recurrent volunteer attendance
-        </p>
+        <h3 className="mb-1 text-xl font-semibold text-gray-900">Attendance Breakdown</h3>
+        <p className="mb-4 text-sm text-gray-500">New vs recurrent volunteer attendance</p>
 
         <ResponsiveContainer width="100%" height={360}>
           <AreaChart data={attendanceData}>
@@ -226,12 +176,8 @@ export function Volunteers() {
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
         {/* Age Distribution */}
         <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
-          <h3 className="mb-1 text-xl font-semibold text-gray-900">
-            Age Distribution
-          </h3>
-          <p className="mb-4 text-sm text-gray-500">
-            Active volunteers by age group
-          </p>
+          <h3 className="mb-1 text-xl font-semibold text-gray-900">Age Distribution</h3>
+          <p className="mb-4 text-sm text-gray-500">Active volunteers by age group</p>
 
           <ResponsiveContainer width="100%" height={300}>
             <BarChart data={ageDistributionData}>
@@ -256,24 +202,12 @@ export function Volunteers() {
 
         {/* Gender Breakdown */}
         <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
-          <h3 className="mb-1 text-xl font-semibold text-gray-900">
-            Gender Breakdown
-          </h3>
-          <p className="mb-4 text-sm text-gray-500">
-            Self-reported gender identity
-          </p>
+          <h3 className="mb-1 text-xl font-semibold text-gray-900">Gender Breakdown</h3>
+          <p className="mb-4 text-sm text-gray-500">Self-reported gender identity</p>
 
           <ResponsiveContainer width="100%" height={300}>
             <PieChart>
-              <Pie
-                data={genderData}
-                cx="50%"
-                cy="50%"
-                innerRadius={70}
-                outerRadius={112}
-                paddingAngle={4}
-                dataKey="value"
-              >
+              <Pie data={genderData} cx="50%" cy="50%" innerRadius={70} outerRadius={112} paddingAngle={4} dataKey="value">
                 {genderData.map((entry, index) => (
                   <Cell key={`gender-cell-${index}`} fill={entry.color} />
                 ))}
@@ -290,9 +224,7 @@ export function Volunteers() {
         <div className="mb-8 text-center">
           <div className="mb-3 inline-flex items-center gap-2">
             <Trophy className="h-6 w-6 text-amber-500" />
-            <h3 className="text-2xl font-semibold text-gray-900">
-              Volunteer Hall of Fame
-            </h3>
+            <h3 className="text-2xl font-semibold text-gray-900">Volunteer Hall of Fame</h3>
           </div>
           <p className="text-sm text-gray-500">Top contributors this year</p>
         </div>
@@ -301,12 +233,7 @@ export function Volunteers() {
         <div className="mb-10 flex flex-col items-center">
           <div className="flex items-end justify-center gap-4 md:gap-8">
             {topThree.map((person) => (
-              <div
-                key={person.rank}
-                className={`flex flex-col items-center text-center ${
-                  person.rank === 1 ? "md:-mt-6" : ""
-                }`}
-              >
+              <div key={person.rank} className={`flex flex-col items-center text-center ${person.rank === 1 ? "md:-mt-6" : ""}`}>
                 <div
                   className={`mb-4 flex h-24 w-24 items-center justify-center rounded-full border-4 ${person.ring} ${person.badgeBg} text-4xl font-bold ${person.badgeText}`}
                 >
@@ -314,24 +241,18 @@ export function Volunteers() {
                 </div>
 
                 <div className="mb-2 flex items-center gap-2">
-                  <div
-                    className={`flex h-9 w-9 items-center justify-center rounded-full ${person.iconBg}`}
-                  >
+                  <div className={`flex h-9 w-9 items-center justify-center rounded-full ${person.iconBg}`}>
                     <Trophy className={`h-5 w-5 ${person.iconText}`} />
                   </div>
                 </div>
 
                 <p className="text-xl font-semibold text-gray-900">{person.name}</p>
-                <p className="mb-4 text-2xl font-semibold text-emerald-600">
-                  {person.hours} hrs
-                </p>
+                <p className="mb-4 text-2xl font-semibold text-emerald-600">{person.hours} hrs</p>
 
                 <div
                   className={`flex w-24 md:w-28 items-center justify-center rounded-t-xl border border-gray-200 ${person.podiumBg} ${person.podiumHeight}`}
                 >
-                  <span className={`text-4xl md:text-5xl font-bold ${person.podiumText}`}>
-                    {person.rank}
-                  </span>
+                  <span className={`text-4xl md:text-5xl font-bold ${person.podiumText}`}>{person.rank}</span>
                 </div>
               </div>
             ))}
@@ -343,29 +264,20 @@ export function Volunteers() {
 
         {/* Honorable mentions */}
         <div>
-          <h4 className="mb-6 text-sm font-semibold uppercase tracking-wide text-gray-500">
-            Honorable Mentions
-          </h4>
+          <h4 className="mb-6 text-sm font-semibold uppercase tracking-wide text-gray-500">Honorable Mentions</h4>
 
           <div className="space-y-5">
             {honorableMentions.map((person) => (
-              <div
-                key={person.rank}
-                className="flex items-center justify-between rounded-xl px-2 py-2"
-              >
+              <div key={person.rank} className="flex items-center justify-between rounded-xl px-2 py-2">
                 <div className="flex items-center gap-4">
-                  <div className="w-8 text-2xl font-medium text-gray-400">
-                    {person.rank}
-                  </div>
+                  <div className="w-8 text-2xl font-medium text-gray-400">{person.rank}</div>
 
                   <div className="flex h-12 w-12 items-center justify-center rounded-full bg-green-100 text-base font-semibold text-green-700">
                     {person.initials}
                   </div>
 
                   <div>
-                    <p className="text-xl font-medium text-gray-900">
-                      {person.name}
-                    </p>
+                    <p className="text-xl font-medium text-gray-900">{person.name}</p>
                     <p className="text-sm text-gray-500">{person.role}</p>
                   </div>
                 </div>
@@ -379,6 +291,7 @@ export function Volunteers() {
           </div>
         </div>
       </div>
+      <Dashboard />
     </div>
   );
 }
