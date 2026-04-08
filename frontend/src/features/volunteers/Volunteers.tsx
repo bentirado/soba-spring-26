@@ -1,7 +1,6 @@
 import { StatCard } from "../../components/shared/StatCard";
 import { Users, Clock, CalendarDays, HeartHandshake, Trophy, Download, Star } from "lucide-react";
 import { AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
-import Dashboard from "../../components/Dashboard";
 
 const attendanceData = [
   { month: "Jan", recurring: 100, newVolunteers: 120 },
@@ -291,7 +290,6 @@ export function Volunteers() {
           </div>
         </div>
       </div>
-      <Dashboard />
     </div>
   );
 }
