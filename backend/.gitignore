@@ -1,2 +1,5 @@
 # Python virtual environment (do not commit)
 .venv/
+
+# Ignore local environment variables like DATABASE_URL.
+.env

@@ -54,6 +54,9 @@ class Volunteer(Base):
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     volgistics_id: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    life_hours: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    last_activity: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
+  
 
     # Relationships
     emergency_contacts: Mapped[List["EmergencyContact"]] = relationship(
