@@ -1,10 +1,10 @@
+from contextlib import asynccontextmanager
 from fastapi import FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from typing import Optional
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-
-from database.connection import get_db
+from database.connection import get_db, init_db
 from database.models import Volunteer
 from mock_data.overview import build_overview
 from mock_data.charts import (
@@ -12,6 +12,22 @@ from mock_data.charts import (
     volunteers_by_gender,
     volunteers_by_city,
 )
+from chatbot import router as chatbot_router
+
+
+# ---------------------------------------------------------------------------
+# Startup
+# ---------------------------------------------------------------------------
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    await init_db()
+    yield
+
+
+# ---------------------------------------------------------------------------
+# Helper — load volunteers from DB
+# ---------------------------------------------------------------------------
 
 # Load volunteers from PostgreSQL and convert them into plain dictionaries
 # that match the shape expected by the existing chart/overview helpers.
@@ -40,7 +56,14 @@ async def load_volunteers_from_db(db: AsyncSession):
         for volunteer in volunteers
     ]
 
-app = FastAPI()
+
+# ---------------------------------------------------------------------------
+# App
+# ---------------------------------------------------------------------------
+
+app = FastAPI(lifespan=lifespan)
+
+app.include_router(chatbot_router)
 
 app.add_middleware(
     CORSMiddleware,
@@ -52,6 +75,11 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+# ---------------------------------------------------------------------------
+# Existing endpoints
+# ---------------------------------------------------------------------------
 
 @app.get("/health")
 def health_check():
@@ -83,20 +111,13 @@ async def get_volunteers_by_gender(
 
     if start or end:
         filtered_volunteers = []
-
         for volunteer in volunteers:
             last_activity = volunteer.get("last_activity")
             if not last_activity:
                 continue
-
             month = last_activity[:7]
-
-            is_after_start = not start or month >= start
-            is_before_end = not end or month <= end
-
-            if is_after_start and is_before_end:
+            if (not start or month >= start) and (not end or month <= end):
                 filtered_volunteers.append(volunteer)
-
         volunteers = filtered_volunteers
 
     return volunteers_by_gender(volunteers)

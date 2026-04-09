@@ -30,6 +30,25 @@ class Base(DeclarativeBase):
 
 
 # ---------------------------------------------------------------------------
+# Chatbot semantic cache
+# ---------------------------------------------------------------------------
+
+class ChatCache(Base):
+    __tablename__ = "chat_cache"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    question: Mapped[str] = mapped_column(Text, nullable=False)
+    embedding: Mapped[str] = mapped_column(Text, nullable=False)  # JSON-serialised float list
+    answer: Mapped[str] = mapped_column(Text, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=datetime.utcnow
+    )
+
+    def __repr__(self) -> str:
+        return f"<ChatCache id={self.id} question='{self.question[:40]}...'>"
+
+
+# ---------------------------------------------------------------------------
 # Core Volunteer Tables
 # ---------------------------------------------------------------------------
 

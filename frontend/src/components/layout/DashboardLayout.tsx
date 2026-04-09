@@ -300,6 +300,7 @@ import {
   LogOut,
 } from "lucide-react";
 import { useState } from "react";
+import { Chatbot } from "@/components/Chatbot";
 
 export function DashboardLayout() {
   const location = useLocation();
@@ -424,6 +425,8 @@ export function DashboardLayout() {
           <Outlet />
         </main>
       </div>
+
+      <Chatbot />
     </div>
   );
 }

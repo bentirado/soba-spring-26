@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState, type ChangeEvent } from "react";
-import { Chatbot } from "@/components/Chatbot";
 import LastActivityChart from "@/components/LastActivityChart";
 import DashboardStatCard from "@/components/StatCard";
 import VolunteersByCityBarChart from "@/components/VolunteersByCityBarChart";
@@ -850,7 +849,6 @@ export function Overview() {
         </div>
       </div>
 
-      <Chatbot />
     </div>
   );
 }
