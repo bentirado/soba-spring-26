@@ -76,6 +76,7 @@ export default function App() {
           <Route path="revenue" element={<Revenue />} />
         </Route>
       </Routes>
+      
     </BrowserRouter>
   );
 }
