@@ -18,13 +18,21 @@ type VolunteersByCityBarChartProps = {
 const COLORS = ["#10b981", "#3b82f6", "#f59e0b", "#8b5cf6", "#ef4444"];
 
 export default function VolunteersByCityBarChart({ data, chartType }: VolunteersByCityBarChartProps) {
+  const sortedData = [...data].sort((left, right) => {
+    if (right.count !== left.count) {
+      return right.count - left.count;
+    }
+
+    return left.city.localeCompare(right.city);
+  });
+
   if (chartType === "pie") {
     return (
       <div className="mt-6 h-80">
         <ResponsiveContainer width="100%" height="100%">
           <PieChart>
-            <Pie data={data} dataKey="count" nameKey="city" cx="50%" cy="50%" outerRadius={100} label>
-              {data.map((entry, index) => (
+            <Pie data={sortedData} dataKey="count" nameKey="city" cx="50%" cy="50%" outerRadius={100} label>
+              {sortedData.map((entry, index) => (
                 <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
               ))}
             </Pie>
@@ -41,7 +49,7 @@ export default function VolunteersByCityBarChart({ data, chartType }: Volunteers
       {/* Responsive container makes the chart resize nicely */}
       <ResponsiveContainer width="100%" height="100%">
         {chartType === "vertical" ? (
-          <BarChart data={data}>
+          <BarChart data={sortedData}>
             {/* Background grid lines */}
             <CartesianGrid strokeDasharray="3 3" />
 
@@ -58,7 +66,7 @@ export default function VolunteersByCityBarChart({ data, chartType }: Volunteers
             <Bar dataKey="count" fill="#10b981" radius={[6, 6, 0, 0]} />
           </BarChart>
         ) : (
-          <BarChart data={data} layout="vertical" margin={{ top: 8, right: 16, left: 24, bottom: 8 }}>
+          <BarChart data={sortedData} layout="vertical" margin={{ top: 8, right: 16, left: 24, bottom: 8 }}>
             {/* Background grid lines */}
             <CartesianGrid strokeDasharray="3 3" />
 
