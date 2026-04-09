@@ -1,6 +1,7 @@
 import { StatCard } from "../../components/shared/StatCard";
-import { Users, Clock, CalendarDays, HeartHandshake, Trophy, Download, Star } from "lucide-react";
-import { AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
+import { useState, useRef } from "react";
+import { Users, Clock, CalendarDays, HeartHandshake, Download, ChevronDown } from "lucide-react";
+import { LineChart, Line, AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
 
 const attendanceData = [
   { month: "Jan", recurring: 100, newVolunteers: 120 },
@@ -31,58 +32,144 @@ const genderData = [
   { name: "Non-binary", value: 15, color: "#a7f3d0" },
 ];
 
-const topThree = [
-  {
-    rank: 2,
-    name: "Michael Chen",
-    hours: 132,
-    initials: "MC",
-    badgeBg: "bg-slate-100",
-    badgeText: "text-slate-700",
-    ring: "border-slate-300",
-    podiumBg: "bg-slate-100",
-    podiumText: "text-slate-400",
-    podiumHeight: "h-24",
-    iconBg: "bg-slate-100",
-    iconText: "text-slate-500",
-  },
-  {
-    rank: 1,
-    name: "Sarah Jenkins",
-    hours: 145,
-    initials: "SJ",
-    badgeBg: "bg-yellow-100",
-    badgeText: "text-amber-700",
-    ring: "border-yellow-400",
-    podiumBg: "bg-yellow-50",
-    podiumText: "text-yellow-500",
-    podiumHeight: "h-32",
-    iconBg: "bg-yellow-100",
-    iconText: "text-amber-500",
-  },
-  {
-    rank: 3,
-    name: "Elena Rodriguez",
-    hours: 118,
-    initials: "ER",
-    badgeBg: "bg-orange-50",
-    badgeText: "text-orange-700",
-    ring: "border-orange-300",
-    podiumBg: "bg-orange-50",
-    podiumText: "text-orange-400",
-    podiumHeight: "h-20",
-    iconBg: "bg-orange-50",
-    iconText: "text-orange-400",
-  },
+const engagementData = [
+  { month: "Jan", currentYear: 120, previousYear: 95 },
+  { month: "Feb", currentYear: 132, previousYear: 102 },
+  { month: "Mar", currentYear: 160, previousYear: 118 },
+  { month: "Apr", currentYear: 145, previousYear: 126 },
+  { month: "May", currentYear: 182, previousYear: 140 },
+  { month: "Jun", currentYear: 210, previousYear: 156 },
+  { month: "Jul", currentYear: 228, previousYear: 172 },
+  { month: "Aug", currentYear: 215, previousYear: 184 },
+  { month: "Sep", currentYear: 240, previousYear: 192 },
+  { month: "Oct", currentYear: 262, previousYear: 210 },
+  { month: "Nov", currentYear: 288, previousYear: 232 },
+  { month: "Dec", currentYear: 322, previousYear: 255 },
 ];
 
-const honorableMentions = [
-  { rank: 4, name: "David Kim", role: "Greeter", hours: 95, initials: "DK" },
-  { rank: 5, name: "Jessica Taylor", role: "Kitchen Staff", hours: 88, initials: "JT" },
-  { rank: 6, name: "Marcus Johnson", role: "Delivery Driver", hours: 82, initials: "MJ" },
+const weeklyActivityData = [
+  { day: "Mon", volunteers: 22, hours: 140, participation: 72 },
+  { day: "Tue", volunteers: 25, hours: 155, participation: 78 },
+  { day: "Wed", volunteers: 29, hours: 168, participation: 85 },
+  { day: "Thu", volunteers: 24, hours: 148, participation: 74 },
+  { day: "Fri", volunteers: 31, hours: 176, participation: 88 },
+  { day: "Sat", volunteers: 34, hours: 192, participation: 96 },
+  { day: "Sun", volunteers: 32, hours: 184, participation: 93 },
 ];
+
+const metricOptions = [
+  { label: "Volunteers", value: "volunteers" },
+  { label: "Hours", value: "hours" },
+  { label: "Participation %", value: "participation" },
+] as const;
+const chartOptions = [
+  { label: "Bar Chart", value: "bar" },
+  { label: "Line Chart", value: "line" },
+  { label: "Area Chart", value: "area" },
+] as const;
+
+type MetricValue = (typeof metricOptions)[number]["value"];
+type ChartValue = (typeof chartOptions)[number]["value"];
+
+// Hall of Fame data moved to the Recognition page
 
 export function Volunteers() {
+  const metricDropdownRef = useRef<HTMLDivElement | null>(null);
+  const chartDropdownRef = useRef<HTMLDivElement | null>(null);
+
+  const [metricOpen, setMetricOpen] = useState(false);
+  const [chartOpen, setChartOpen] = useState(false);
+
+  const [selectedMetric, setSelectedMetric] = useState<MetricValue>("participation");
+  const [selectedChart, setSelectedChart] = useState<ChartValue>("bar");
+
+  const selectedMetricLabel = metricOptions.find((option) => option.value === selectedMetric)?.label ?? "Participation %";
+  const selectedChartLabel = chartOptions.find((option) => option.value === selectedChart)?.label ?? "Bar Chart";
+
+  const metricColor = selectedMetric === "hours" ? "#f97316" : selectedMetric === "volunteers" ? "#2563eb" : "#059669";
+
+  const renderWeeklyActivityChart = () => {
+    if (selectedChart === "line") {
+      return (
+        <ResponsiveContainer width="100%" height={280}>
+          <LineChart data={weeklyActivityData}>
+            <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+            <XAxis dataKey="day" stroke="#6b7280" />
+            <YAxis stroke="#6b7280" />
+            <Tooltip
+              contentStyle={{
+                backgroundColor: "#ffffff",
+                border: "1px solid #e5e7eb",
+                borderRadius: "8px",
+              }}
+            />
+            <Legend />
+            <Line
+              type="monotone"
+              dataKey={selectedMetric}
+              stroke={metricColor}
+              strokeWidth={3}
+              dot={{ fill: metricColor, r: 4 }}
+              name={selectedMetricLabel}
+            />
+          </LineChart>
+        </ResponsiveContainer>
+      );
+    }
+
+    if (selectedChart === "area") {
+      return (
+        <ResponsiveContainer width="100%" height={280}>
+          <AreaChart data={weeklyActivityData}>
+            <defs>
+              <linearGradient id="weeklyAreaFill" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor={metricColor} stopOpacity={0.28} />
+                <stop offset="95%" stopColor={metricColor} stopOpacity={0.04} />
+              </linearGradient>
+            </defs>
+            <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+            <XAxis dataKey="day" stroke="#6b7280" />
+            <YAxis stroke="#6b7280" />
+            <Tooltip
+              contentStyle={{
+                backgroundColor: "#ffffff",
+                border: "1px solid #e5e7eb",
+                borderRadius: "8px",
+              }}
+            />
+            <Legend />
+            <Area
+              type="monotone"
+              dataKey={selectedMetric}
+              stroke={metricColor}
+              fill="url(#weeklyAreaFill)"
+              strokeWidth={2}
+              name={selectedMetricLabel}
+            />
+          </AreaChart>
+        </ResponsiveContainer>
+      );
+    }
+
+    return (
+      <ResponsiveContainer width="100%" height={280}>
+        <BarChart data={weeklyActivityData}>
+          <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+          <XAxis dataKey="day" stroke="#6b7280" />
+          <YAxis stroke="#6b7280" />
+          <Tooltip
+            contentStyle={{
+              backgroundColor: "#ffffff",
+              border: "1px solid #e5e7eb",
+              borderRadius: "8px",
+            }}
+          />
+          <Legend />
+          <Bar dataKey={selectedMetric} fill={metricColor} radius={[8, 8, 0, 0]} name={selectedMetricLabel} />
+        </BarChart>
+      </ResponsiveContainer>
+    );
+  };
   const handleExportClick = () => {
     console.log("Export data clicked");
   };
@@ -218,76 +305,115 @@ export function Volunteers() {
         </div>
       </div>
 
-      {/* Hall of Fame */}
-      <div className="rounded-2xl border border-gray-200 bg-white p-8 shadow-sm">
-        <div className="mb-8 text-center">
-          <div className="mb-3 inline-flex items-center gap-2">
-            <Trophy className="h-6 w-6 text-amber-500" />
-            <h3 className="text-2xl font-semibold text-gray-900">Volunteer Hall of Fame</h3>
-          </div>
-          <p className="text-sm text-gray-500">Top contributors this year</p>
+      {/* Volunteer Engagement Trends + Weekly Activity (moved from Overview) */}
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
+        {/* Volunteer Engagement Trends */}
+        <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+          <h3 className="mb-1 text-xl font-semibold text-gray-900">Volunteer Engagement Trends</h3>
+          <p className="mb-4 text-sm text-gray-500">Active volunteers per month (YoY Comparison)</p>
+
+          <ResponsiveContainer width="100%" height={320}>
+            <LineChart data={engagementData}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+              <XAxis dataKey="month" stroke="#6b7280" />
+              <YAxis stroke="#6b7280" />
+              <Tooltip
+                contentStyle={{
+                  backgroundColor: "#ffffff",
+                  border: "1px solid #e5e7eb",
+                  borderRadius: "8px",
+                }}
+              />
+              <Legend />
+              <Line type="monotone" dataKey="currentYear" stroke="#059669" strokeWidth={3} dot={{ fill: "#059669", r: 4 }} name="Current Year" />
+              <Line
+                type="monotone"
+                dataKey="previousYear"
+                stroke="#94a3b8"
+                strokeWidth={2.5}
+                strokeDasharray="6 6"
+                dot={{ fill: "#94a3b8", r: 3 }}
+                name="Previous Year"
+              />
+            </LineChart>
+          </ResponsiveContainer>
         </div>
 
-        {/* Top 3 podium */}
-        <div className="mb-10 flex flex-col items-center">
-          <div className="flex items-end justify-center gap-4 md:gap-8">
-            {topThree.map((person) => (
-              <div key={person.rank} className={`flex flex-col items-center text-center ${person.rank === 1 ? "md:-mt-6" : ""}`}>
-                <div
-                  className={`mb-4 flex h-24 w-24 items-center justify-center rounded-full border-4 ${person.ring} ${person.badgeBg} text-4xl font-bold ${person.badgeText}`}
-                >
-                  {person.initials}
+        {/* Weekly Activity Analysis */}
+        <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+          <div className="mb-4 flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+            <div>
+              <h3 className="mb-1 text-xl font-semibold text-gray-900">Weekly Activity Analysis</h3>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-3">
+              <div className="relative" ref={metricDropdownRef}>
+                <div className="flex items-center gap-2 text-sm text-gray-500">
+                  <span>Metric:</span>
+                  <button
+                    onClick={() => setMetricOpen((prev) => !prev)}
+                    className="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-medium text-gray-700 shadow-sm transition hover:bg-gray-50"
+                  >
+                    <span>{selectedMetricLabel}</span>
+                    <ChevronDown className={`h-4 w-4 transition-transform ${metricOpen ? "rotate-180" : ""}`} />
+                  </button>
                 </div>
 
-                <div className="mb-2 flex items-center gap-2">
-                  <div className={`flex h-9 w-9 items-center justify-center rounded-full ${person.iconBg}`}>
-                    <Trophy className={`h-5 w-5 ${person.iconText}`} />
+                {metricOpen && (
+                  <div className="absolute right-0 z-20 mt-2 w-40 overflow-hidden rounded-lg border border-gray-200 bg-white shadow-lg">
+                    {metricOptions.map((option) => (
+                      <button
+                        key={option.value}
+                        onClick={() => {
+                          setSelectedMetric(option.value);
+                          setMetricOpen(false);
+                        }}
+                        className={`w-full px-4 py-3 text-left text-sm transition ${
+                          selectedMetric === option.value ? "bg-blue-600 text-white" : "text-gray-700 hover:bg-gray-50"
+                        }`}
+                      >
+                        {option.label}
+                      </button>
+                    ))}
                   </div>
-                </div>
-
-                <p className="text-xl font-semibold text-gray-900">{person.name}</p>
-                <p className="mb-4 text-2xl font-semibold text-emerald-600">{person.hours} hrs</p>
-
-                <div
-                  className={`flex w-24 md:w-28 items-center justify-center rounded-t-xl border border-gray-200 ${person.podiumBg} ${person.podiumHeight}`}
-                >
-                  <span className={`text-4xl md:text-5xl font-bold ${person.podiumText}`}>{person.rank}</span>
-                </div>
+                )}
               </div>
-            ))}
-          </div>
-        </div>
 
-        {/* Divider */}
-        <div className="mb-8 border-t border-gray-200" />
-
-        {/* Honorable mentions */}
-        <div>
-          <h4 className="mb-6 text-sm font-semibold uppercase tracking-wide text-gray-500">Honorable Mentions</h4>
-
-          <div className="space-y-5">
-            {honorableMentions.map((person) => (
-              <div key={person.rank} className="flex items-center justify-between rounded-xl px-2 py-2">
-                <div className="flex items-center gap-4">
-                  <div className="w-8 text-2xl font-medium text-gray-400">{person.rank}</div>
-
-                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-green-100 text-base font-semibold text-green-700">
-                    {person.initials}
-                  </div>
-
-                  <div>
-                    <p className="text-xl font-medium text-gray-900">{person.name}</p>
-                    <p className="text-sm text-gray-500">{person.role}</p>
-                  </div>
+              <div className="relative" ref={chartDropdownRef}>
+                <div className="flex items-center gap-2 text-sm text-gray-500">
+                  <span>Chart:</span>
+                  <button
+                    onClick={() => setChartOpen((prev) => !prev)}
+                    className="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-medium text-gray-700 shadow-sm transition hover:bg-gray-50"
+                  >
+                    <span>{selectedChartLabel}</span>
+                    <ChevronDown className={`h-4 w-4 transition-transform ${chartOpen ? "rotate-180" : ""}`} />
+                  </button>
                 </div>
 
-                <div className="inline-flex items-center gap-2 text-xl font-semibold text-emerald-600">
-                  <Star className="h-5 w-5 fill-current" />
-                  {person.hours} hrs
-                </div>
+                {chartOpen && (
+                  <div className="absolute right-0 z-20 mt-2 w-36 overflow-hidden rounded-lg border border-gray-200 bg-white shadow-lg">
+                    {chartOptions.map((option) => (
+                      <button
+                        key={option.value}
+                        onClick={() => {
+                          setSelectedChart(option.value);
+                          setChartOpen(false);
+                        }}
+                        className={`w-full px-4 py-3 text-left text-sm transition ${
+                          selectedChart === option.value ? "bg-blue-600 text-white" : "text-gray-700 hover:bg-gray-50"
+                        }`}
+                      >
+                        {option.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
-            ))}
+            </div>
           </div>
+
+          {renderWeeklyActivityChart()}
         </div>
       </div>
     </div>

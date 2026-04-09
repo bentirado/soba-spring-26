@@ -308,8 +308,8 @@ export function DashboardLayout() {
   const navigation = [
     { name: "Overview", href: "/", icon: LayoutDashboard, disabled: false },
     { name: "Volunteers", href: "/volunteers", icon: Users, disabled: false },
-    { name: "Recognition", href: "/recognition", icon: Award, disabled: false },
-    { name: "Exhibitions", href: "/exhibitions", icon: Presentation, disabled: true },
+  { name: "Recognition", href: "/recognition", icon: Award, disabled: true },
+  { name: "Exhibitions", href: "/exhibitions", icon: Presentation, disabled: true },
   ];
 
   const handleLogout = () => {

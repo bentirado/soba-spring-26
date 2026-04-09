@@ -47,6 +47,13 @@ const engagementMetrics = [
 
 const colors = ["#1f4f99", "#ff7a3d", "#2fb36f", "#60a5fa", "#fbbf24", "#34d399"];
 
+const demographicData = [
+  { name: "Children (5-12)", value: 35, color: "#2563eb" },
+  { name: "Teens (13-17)", value: 18, color: "#60a5fa" },
+  { name: "Adults (18-64)", value: 38, color: "#f97316" },
+  { name: "Seniors (65+)", value: 9, color: "#16a34a" },
+];
+
 export function Exhibitions() {
   return (
     <div className="space-y-6">
@@ -175,6 +182,58 @@ export function Exhibitions() {
             />
           </RadarChart>
         </ResponsiveContainer>
+      </div>
+
+      {/* Top Exhibitions + Visitor Demographics (moved from Overview) */}
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
+        <div className="bg-white border border-gray-200 rounded-xl p-6">
+          <h3 className="mb-1 text-xl font-semibold text-gray-900">Top Exhibitions</h3>
+          <p className="mb-4 text-sm text-gray-500">Most visited this month</p>
+
+          <ResponsiveContainer width="100%" height={300}>
+            <BarChart data={exhibitionPerformance} layout="vertical">
+              <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+              <XAxis type="number" stroke="#6b7280" />
+              <YAxis dataKey="name" type="category" stroke="#6b7280" width={140} />
+              <Tooltip
+                contentStyle={{
+                  backgroundColor: "#ffffff",
+                  border: "1px solid #e5e7eb",
+                  borderRadius: "8px",
+                }}
+              />
+              <Bar dataKey="visitors" radius={[0, 8, 8, 0]}>
+                {exhibitionPerformance.map((_, i) => (
+                  <Cell key={i} fill={colors[i % colors.length]} />
+                ))}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+
+        <div className="bg-white border border-gray-200 rounded-xl p-6">
+          <h3 className="mb-1 text-xl font-semibold text-gray-900">Visitor Demographics</h3>
+          <p className="mb-4 text-sm text-gray-500">Current audience mix</p>
+
+          <ResponsiveContainer width="100%" height={300}>
+            <PieChart>
+              <Pie
+                data={demographicData}
+                cx="50%"
+                cy="50%"
+                labelLine={false}
+                label={({ name, value }) => `${name}: ${value}%`}
+                outerRadius={100}
+                dataKey="value"
+              >
+                {demographicData.map((entry, index) => (
+                  <Cell key={`cell-${index}`} fill={entry.color} />
+                ))}
+              </Pie>
+              <Tooltip />
+            </PieChart>
+          </ResponsiveContainer>
+        </div>
       </div>
     </div>
   );

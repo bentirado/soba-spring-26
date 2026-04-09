@@ -1,85 +1,19 @@
-import { useEffect, useRef, useState, type ChangeEvent } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Chatbot } from "@/components/Chatbot";
 import LastActivityChart from "@/components/LastActivityChart";
-import DashboardStatCard from "@/components/StatCard";
 import VolunteersByCityBarChart from "@/components/VolunteersByCityBarChart";
 import VolunteersByGenderPieChart from "@/components/VolunteersByGenderPieChart";
 import * as XLSX from "xlsx";
 import { StatCard } from "@/components/shared/StatCard";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Users, TrendingUp, FileText, ChevronDown, UserCheck, Clock3, UserPlus } from "lucide-react";
-import {
-  LineChart,
-  Line,
-  BarChart,
-  Bar,
-  AreaChart,
-  Area,
-  PieChart,
-  Pie,
-  Cell,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
-  ResponsiveContainer,
-} from "recharts";
+// Recharts chart components are used inside dedicated chart components; no direct imports needed here.
 
-const exhibitionData = [
-  { name: "Space Exploration", visitors: 2400 },
-  { name: "Ocean Life", visitors: 1890 },
-  { name: "Dinosaur Era", visitors: 2100 },
-  { name: "Human Body", visitors: 1650 },
-  { name: "Energy Lab", visitors: 1320 },
-];
+// Note: exhibition and demographic datasets were moved to the Exhibitions feature.
 
-const demographicData = [
-  { name: "Children (5-12)", value: 35, color: "#2563eb" },
-  { name: "Teens (13-17)", value: 18, color: "#60a5fa" },
-  { name: "Adults (18-64)", value: 38, color: "#f97316" },
-  { name: "Seniors (65+)", value: 9, color: "#16a34a" },
-];
-
-const engagementData = [
-  { month: "Jan", currentYear: 120, previousYear: 95 },
-  { month: "Feb", currentYear: 132, previousYear: 102 },
-  { month: "Mar", currentYear: 160, previousYear: 118 },
-  { month: "Apr", currentYear: 145, previousYear: 126 },
-  { month: "May", currentYear: 182, previousYear: 140 },
-  { month: "Jun", currentYear: 210, previousYear: 156 },
-  { month: "Jul", currentYear: 228, previousYear: 172 },
-  { month: "Aug", currentYear: 215, previousYear: 184 },
-  { month: "Sep", currentYear: 240, previousYear: 192 },
-  { month: "Oct", currentYear: 262, previousYear: 210 },
-  { month: "Nov", currentYear: 288, previousYear: 232 },
-  { month: "Dec", currentYear: 322, previousYear: 255 },
-];
-
-const weeklyActivityData = [
-  { day: "Mon", volunteers: 22, hours: 140, participation: 72 },
-  { day: "Tue", volunteers: 25, hours: 155, participation: 78 },
-  { day: "Wed", volunteers: 29, hours: 168, participation: 85 },
-  { day: "Thu", volunteers: 24, hours: 148, participation: 74 },
-  { day: "Fri", volunteers: 31, hours: 176, participation: 88 },
-  { day: "Sat", volunteers: 34, hours: 192, participation: 96 },
-  { day: "Sun", volunteers: 32, hours: 184, participation: 93 },
-];
 
 const rangeOptions = ["Last 30 Days", "This Quarter", "This Year", "All Time"];
-const metricOptions = [
-  { label: "Volunteers", value: "volunteers" },
-  { label: "Hours", value: "hours" },
-  { label: "Participation %", value: "participation" },
-] as const;
-const chartOptions = [
-  { label: "Bar Chart", value: "bar" },
-  { label: "Line Chart", value: "line" },
-  { label: "Area Chart", value: "area" },
-] as const;
 
-type MetricValue = (typeof metricOptions)[number]["value"];
-type ChartValue = (typeof chartOptions)[number]["value"];
 type SpreadsheetRow = Record<string, unknown>;
 
 const parseSpreadsheetFile = async (file: File): Promise<SpreadsheetRow[]> => {
@@ -126,8 +60,6 @@ export function Overview() {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const dataActionsRef = useRef<HTMLDivElement | null>(null);
   const rangeDropdownRef = useRef<HTMLDivElement | null>(null);
-  const metricDropdownRef = useRef<HTMLDivElement | null>(null);
-  const chartDropdownRef = useRef<HTMLDivElement | null>(null);
 
   const [selectedFileName, setSelectedFileName] = useState("");
   const [pendingUploadRows, setPendingUploadRows] = useState<SpreadsheetRow[]>([]);
@@ -135,12 +67,9 @@ export function Overview() {
   const [uploadErrorMessage, setUploadErrorMessage] = useState("");
   const [dataActionsOpen, setDataActionsOpen] = useState(false);
   const [rangeOpen, setRangeOpen] = useState(false);
-  const [metricOpen, setMetricOpen] = useState(false);
-  const [chartOpen, setChartOpen] = useState(false);
+  
 
   const [selectedRange, setSelectedRange] = useState("Last 30 Days");
-  const [selectedMetric, setSelectedMetric] = useState<MetricValue>("participation");
-  const [selectedChart, setSelectedChart] = useState<ChartValue>("bar");
   const [overview, setOverview] = useState<OverviewData | null>(null);
   const [lastActivityData, setLastActivityData] = useState<LastActivityPoint[]>([]);
   const [genderData, setGenderData] = useState<GenderBreakdownPoint[]>([]);
@@ -176,12 +105,10 @@ export function Overview() {
     console.log("Generate report clicked");
   };
 
-  const handleAIAssistantClick = () => {
-    console.log("AI Assistant clicked");
-  };
-
-  const handleFileChange = async (event: ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
+  // AI assistant action placeholder (not used in this view currently)
+  
+  const handleFileChange = async (event: any) => {
+    const file = event.target?.files?.[0];
     if (!file) {
       return;
     }
@@ -194,13 +121,14 @@ export function Overview() {
       setUploadErrorMessage("");
       setIsUploadDialogOpen(true);
     } catch (error) {
-      setSelectedFileName(file.name);
+      setSelectedFileName(file?.name ?? "");
       setPendingUploadRows([]);
       setIsUploadDialogOpen(true);
       console.error("Failed to parse uploaded spreadsheet:", error);
       setUploadErrorMessage("We couldn't read that spreadsheet. Please try another file.");
     } finally {
-      event.target.value = "";
+      // Clear input value so the same file can be re-selected if needed
+      if (event.target) (event.target as HTMLInputElement).value = "";
     }
   };
 
@@ -225,12 +153,7 @@ export function Overview() {
       if (rangeDropdownRef.current && !rangeDropdownRef.current.contains(target)) {
         setRangeOpen(false);
       }
-      if (metricDropdownRef.current && !metricDropdownRef.current.contains(target)) {
-        setMetricOpen(false);
-      }
-      if (chartDropdownRef.current && !chartDropdownRef.current.contains(target)) {
-        setChartOpen(false);
-      }
+      
     };
 
     document.addEventListener("mousedown", handleClickOutside);
@@ -299,94 +222,7 @@ export function Overview() {
     fetchDashboardData();
   }, [apiBaseUrl, genderStartMonth, genderEndMonth]);
 
-  const selectedMetricLabel = metricOptions.find((option) => option.value === selectedMetric)?.label ?? "Participation %";
-
-  const selectedChartLabel = chartOptions.find((option) => option.value === selectedChart)?.label ?? "Bar Chart";
-
-  const metricColor = selectedMetric === "hours" ? "#f97316" : selectedMetric === "volunteers" ? "#2563eb" : "#059669";
-
-  const renderWeeklyActivityChart = () => {
-    if (selectedChart === "line") {
-      return (
-        <ResponsiveContainer width="100%" height={280}>
-          <LineChart data={weeklyActivityData}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-            <XAxis dataKey="day" stroke="#6b7280" />
-            <YAxis stroke="#6b7280" />
-            <Tooltip
-              contentStyle={{
-                backgroundColor: "#ffffff",
-                border: "1px solid #e5e7eb",
-                borderRadius: "8px",
-              }}
-            />
-            <Legend />
-            <Line
-              type="monotone"
-              dataKey={selectedMetric}
-              stroke={metricColor}
-              strokeWidth={3}
-              dot={{ fill: metricColor, r: 4 }}
-              name={selectedMetricLabel}
-            />
-          </LineChart>
-        </ResponsiveContainer>
-      );
-    }
-
-    if (selectedChart === "area") {
-      return (
-        <ResponsiveContainer width="100%" height={280}>
-          <AreaChart data={weeklyActivityData}>
-            <defs>
-              <linearGradient id="weeklyAreaFill" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor={metricColor} stopOpacity={0.28} />
-                <stop offset="95%" stopColor={metricColor} stopOpacity={0.04} />
-              </linearGradient>
-            </defs>
-            <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-            <XAxis dataKey="day" stroke="#6b7280" />
-            <YAxis stroke="#6b7280" />
-            <Tooltip
-              contentStyle={{
-                backgroundColor: "#ffffff",
-                border: "1px solid #e5e7eb",
-                borderRadius: "8px",
-              }}
-            />
-            <Legend />
-            <Area
-              type="monotone"
-              dataKey={selectedMetric}
-              stroke={metricColor}
-              fill="url(#weeklyAreaFill)"
-              strokeWidth={2}
-              name={selectedMetricLabel}
-            />
-          </AreaChart>
-        </ResponsiveContainer>
-      );
-    }
-
-    return (
-      <ResponsiveContainer width="100%" height={280}>
-        <BarChart data={weeklyActivityData}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-          <XAxis dataKey="day" stroke="#6b7280" />
-          <YAxis stroke="#6b7280" />
-          <Tooltip
-            contentStyle={{
-              backgroundColor: "#ffffff",
-              border: "1px solid #e5e7eb",
-              borderRadius: "8px",
-            }}
-          />
-          <Legend />
-          <Bar dataKey={selectedMetric} fill={metricColor} radius={[8, 8, 0, 0]} name={selectedMetricLabel} />
-        </BarChart>
-      </ResponsiveContainer>
-    );
-  };
+  
 
   return (
     <div className="space-y-6">
@@ -533,13 +369,7 @@ export function Overview() {
         </DialogContent>
       </Dialog>
 
-      {/* Main stats */}
-      <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-4">
-        <StatCard title="Active Volunteers" value="58" change="+12% from last month" changeType="positive" icon={Users} iconColor="bg-blue-600" />
-        <StatCard title="Hours Logged" value="425" change="+25% increase" changeType="positive" icon={Clock3} iconColor="bg-orange-500" />
-        <StatCard title="New Volunteers" value="8" change="This month" changeType="positive" icon={UserPlus} iconColor="bg-green-600" />
-        <StatCard title="Retention Rate" value="87%" change="+5% improvement" changeType="positive" icon={TrendingUp} iconColor="bg-blue-600" />
-      </div>
+      {/* Main stats (top small cards removed by request) */}
 
       {/* API-backed dashboard content */}
       <div className="space-y-6">
@@ -547,10 +377,10 @@ export function Overview() {
         {error && <p className="text-sm text-red-600">{error}</p>}
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          <DashboardStatCard title="Total Volunteers" value={overview?.total_volunteers ?? "--"} />
-          <DashboardStatCard title="Hours Logged" value={overview?.hours_logged ?? "--"} />
-          <DashboardStatCard title="Average Age" value={overview?.average_age ?? "--"} />
-          <DashboardStatCard title="Cities Represented" value={overview?.cities_represented ?? "--"} />
+          <StatCard title="Total Volunteers" value={overview?.total_volunteers ?? "--"} icon={Users} iconColor="bg-blue-600" />
+          <StatCard title="Hours Logged" value={overview?.hours_logged ?? "--"} icon={Clock3} iconColor="bg-orange-500" />
+          <StatCard title="Average Age" value={overview?.average_age ?? "--"} icon={UserPlus} iconColor="bg-green-600" />
+          <StatCard title="Cities Represented" value={overview?.cities_represented ?? "--"} icon={TrendingUp} iconColor="bg-blue-600" />
         </div>
 
         <div className="grid grid-cols-1 gap-6">
@@ -660,165 +490,9 @@ export function Overview() {
         </div>
       </div>
 
-      {/* Top row: requested graphs */}
-      <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
-        {/* Volunteer Engagement Trends */}
-        <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
-          <h3 className="mb-1 text-xl font-semibold text-gray-900">Volunteer Engagement Trends</h3>
-          <p className="mb-4 text-sm text-gray-500">Active volunteers per month (YoY Comparison)</p>
+      {/* Volunteer Engagement Trends and Weekly Activity cards moved to Volunteers page */}
 
-          <ResponsiveContainer width="100%" height={320}>
-            <LineChart data={engagementData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-              <XAxis dataKey="month" stroke="#6b7280" />
-              <YAxis stroke="#6b7280" />
-              <Tooltip
-                contentStyle={{
-                  backgroundColor: "#ffffff",
-                  border: "1px solid #e5e7eb",
-                  borderRadius: "8px",
-                }}
-              />
-              <Legend />
-              <Line type="monotone" dataKey="currentYear" stroke="#059669" strokeWidth={3} dot={{ fill: "#059669", r: 4 }} name="Current Year" />
-              <Line
-                type="monotone"
-                dataKey="previousYear"
-                stroke="#94a3b8"
-                strokeWidth={2.5}
-                strokeDasharray="6 6"
-                dot={{ fill: "#94a3b8", r: 3 }}
-                name="Previous Year"
-              />
-            </LineChart>
-          </ResponsiveContainer>
-        </div>
-
-        {/* Weekly Activity Analysis */}
-        <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
-          <div className="mb-4 flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
-            <div>
-              <h3 className="mb-1 text-xl font-semibold text-gray-900">Weekly Activity Analysis</h3>
-            </div>
-
-            <div className="flex flex-wrap items-center gap-3">
-              <div className="relative" ref={metricDropdownRef}>
-                <div className="flex items-center gap-2 text-sm text-gray-500">
-                  <span>Metric:</span>
-                  <button
-                    onClick={() => setMetricOpen((prev) => !prev)}
-                    className="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-medium text-gray-700 shadow-sm transition hover:bg-gray-50"
-                  >
-                    <span>{selectedMetricLabel}</span>
-                    <ChevronDown className={`h-4 w-4 transition-transform ${metricOpen ? "rotate-180" : ""}`} />
-                  </button>
-                </div>
-
-                {metricOpen && (
-                  <div className="absolute right-0 z-20 mt-2 w-40 overflow-hidden rounded-lg border border-gray-200 bg-white shadow-lg">
-                    {metricOptions.map((option) => (
-                      <button
-                        key={option.value}
-                        onClick={() => {
-                          setSelectedMetric(option.value);
-                          setMetricOpen(false);
-                        }}
-                        className={`w-full px-4 py-3 text-left text-sm transition ${
-                          selectedMetric === option.value ? "bg-blue-600 text-white" : "text-gray-700 hover:bg-gray-50"
-                        }`}
-                      >
-                        {option.label}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              <div className="relative" ref={chartDropdownRef}>
-                <div className="flex items-center gap-2 text-sm text-gray-500">
-                  <span>Chart:</span>
-                  <button
-                    onClick={() => setChartOpen((prev) => !prev)}
-                    className="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-medium text-gray-700 shadow-sm transition hover:bg-gray-50"
-                  >
-                    <span>{selectedChartLabel}</span>
-                    <ChevronDown className={`h-4 w-4 transition-transform ${chartOpen ? "rotate-180" : ""}`} />
-                  </button>
-                </div>
-
-                {chartOpen && (
-                  <div className="absolute right-0 z-20 mt-2 w-36 overflow-hidden rounded-lg border border-gray-200 bg-white shadow-lg">
-                    {chartOptions.map((option) => (
-                      <button
-                        key={option.value}
-                        onClick={() => {
-                          setSelectedChart(option.value);
-                          setChartOpen(false);
-                        }}
-                        className={`w-full px-4 py-3 text-left text-sm transition ${
-                          selectedChart === option.value ? "bg-blue-600 text-white" : "text-gray-700 hover:bg-gray-50"
-                        }`}
-                      >
-                        {option.label}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {renderWeeklyActivityChart()}
-        </div>
-      </div>
-
-      {/* Existing rest of page kept */}
-      <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
-        <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
-          <h3 className="mb-1 text-xl font-semibold">Top Exhibitions</h3>
-          <p className="mb-4 text-sm text-gray-500">Most visited this month</p>
-
-          <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={exhibitionData} layout="vertical">
-              <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-              <XAxis type="number" stroke="#6b7280" />
-              <YAxis dataKey="name" type="category" stroke="#6b7280" width={120} />
-              <Tooltip
-                contentStyle={{
-                  backgroundColor: "#ffffff",
-                  border: "1px solid #e5e7eb",
-                  borderRadius: "8px",
-                }}
-              />
-              <Bar dataKey="visitors" fill="#16a34a" radius={[0, 8, 8, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-
-        <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
-          <h3 className="mb-1 text-xl font-semibold">Visitor Demographics</h3>
-          <p className="mb-4 text-sm text-gray-500">Current audience mix</p>
-
-          <ResponsiveContainer width="100%" height={300}>
-            <PieChart>
-              <Pie
-                data={demographicData}
-                cx="50%"
-                cy="50%"
-                labelLine={false}
-                label={({ name, value }) => `${name}: ${value}%`}
-                outerRadius={100}
-                dataKey="value"
-              >
-                {demographicData.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={entry.color} />
-                ))}
-              </Pie>
-              <Tooltip />
-            </PieChart>
-          </ResponsiveContainer>
-        </div>
-      </div>
+      {/* Exhibitions and visitor demographics moved to the Exhibitions page */}
 
       {/* Bottom insight cards */}
       <div className="grid grid-cols-1 gap-4 md:grid-cols-3">

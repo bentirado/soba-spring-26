@@ -117,6 +117,58 @@ const recentRecognition = [
   },
 ];
 
+// Hall of Fame data (moved from Volunteers page)
+const topThree = [
+  {
+    rank: 2,
+    name: "Michael Chen",
+    hours: 132,
+    initials: "MC",
+    badgeBg: "bg-slate-100",
+    badgeText: "text-slate-700",
+    ring: "border-slate-300",
+    podiumBg: "bg-slate-100",
+    podiumText: "text-slate-400",
+    podiumHeight: "h-24",
+    iconBg: "bg-slate-100",
+    iconText: "text-slate-500",
+  },
+  {
+    rank: 1,
+    name: "Sarah Jenkins",
+    hours: 145,
+    initials: "SJ",
+    badgeBg: "bg-yellow-100",
+    badgeText: "text-amber-700",
+    ring: "border-yellow-400",
+    podiumBg: "bg-yellow-50",
+    podiumText: "text-yellow-500",
+    podiumHeight: "h-32",
+    iconBg: "bg-yellow-100",
+    iconText: "text-amber-500",
+  },
+  {
+    rank: 3,
+    name: "Elena Rodriguez",
+    hours: 118,
+    initials: "ER",
+    badgeBg: "bg-orange-50",
+    badgeText: "text-orange-700",
+    ring: "border-orange-300",
+    podiumBg: "bg-orange-50",
+    podiumText: "text-orange-400",
+    podiumHeight: "h-20",
+    iconBg: "bg-orange-50",
+    iconText: "text-orange-400",
+  },
+];
+
+const honorableMentions = [
+  { rank: 4, name: "David Kim", role: "Greeter", hours: 95, initials: "DK" },
+  { rank: 5, name: "Jessica Taylor", role: "Kitchen Staff", hours: 88, initials: "JT" },
+  { rank: 6, name: "Marcus Johnson", role: "Delivery Driver", hours: 82, initials: "MJ" },
+];
+
 export function Recognition() {
   const handleCreateBadge = () => {
     console.log("Create new badge clicked");
@@ -188,6 +240,79 @@ export function Recognition() {
               </div>
             );
           })}
+        </div>
+      </section>
+
+      {/* Hall of Fame (moved from Volunteers) */}
+      <section className="rounded-2xl border border-gray-200 bg-white p-8 shadow-sm">
+        <div className="mb-8 text-center">
+          <div className="mb-3 inline-flex items-center gap-2">
+            <Trophy className="h-6 w-6 text-amber-500" />
+            <h3 className="text-2xl font-semibold text-gray-900">Volunteer Hall of Fame</h3>
+          </div>
+          <p className="text-sm text-gray-500">Top contributors this year</p>
+        </div>
+
+        {/* Top 3 podium */}
+        <div className="mb-10 flex flex-col items-center">
+          <div className="flex items-end justify-center gap-4 md:gap-8">
+            {topThree.map((person) => (
+              <div key={person.rank} className={`flex flex-col items-center text-center ${person.rank === 1 ? "md:-mt-6" : ""}`}>
+                <div
+                  className={`mb-4 flex h-24 w-24 items-center justify-center rounded-full border-4 ${person.ring} ${person.badgeBg} text-4xl font-bold ${person.badgeText}`}
+                >
+                  {person.initials}
+                </div>
+
+                <div className="mb-2 flex items-center gap-2">
+                  <div className={`flex h-9 w-9 items-center justify-center rounded-full ${person.iconBg}`}>
+                    <Trophy className={`h-5 w-5 ${person.iconText}`} />
+                  </div>
+                </div>
+
+                <p className="text-xl font-semibold text-gray-900">{person.name}</p>
+                <p className="mb-4 text-2xl font-semibold text-emerald-600">{person.hours} hrs</p>
+
+                <div
+                  className={`flex w-24 md:w-28 items-center justify-center rounded-t-xl border border-gray-200 ${person.podiumBg} ${person.podiumHeight}`}
+                >
+                  <span className={`text-4xl md:text-5xl font-bold ${person.podiumText}`}>{person.rank}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Divider */}
+        <div className="mb-8 border-t border-gray-200" />
+
+        {/* Honorable mentions */}
+        <div>
+          <h4 className="mb-6 text-sm font-semibold uppercase tracking-wide text-gray-500">Honorable Mentions</h4>
+
+          <div className="space-y-5">
+            {honorableMentions.map((person) => (
+              <div key={person.rank} className="flex items-center justify-between rounded-xl px-2 py-2">
+                <div className="flex items-center gap-4">
+                  <div className="w-8 text-2xl font-medium text-gray-400">{person.rank}</div>
+
+                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-green-100 text-base font-semibold text-green-700">
+                    {person.initials}
+                  </div>
+
+                  <div>
+                    <p className="text-xl font-medium text-gray-900">{person.name}</p>
+                    <p className="text-sm text-gray-500">{person.role}</p>
+                  </div>
+                </div>
+
+                <div className="inline-flex items-center gap-2 text-xl font-semibold text-emerald-600">
+                  <Star className="h-5 w-5 fill-current" />
+                  {person.hours} hrs
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       </section>
 
