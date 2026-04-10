@@ -72,8 +72,8 @@ export default function App() {
           <Route index element={<Overview />} />
           <Route path="volunteers" element={<Volunteers />} />
           <Route path="recognition" element={<Recognition />} />
-          <Route path="exhibitions" element={<Exhibitions />} />
-          <Route path="revenue" element={<Revenue />} />
+          {/* <Route path="exhibitions" element={<Exhibitions />} /> */}
+          {/* <Route path="revenue" element={<Revenue />} /> */}
         </Route>
       </Routes>
       

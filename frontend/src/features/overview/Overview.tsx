@@ -6,7 +6,7 @@ import VolunteersByGenderPieChart from "@/components/VolunteersByGenderPieChart"
 import * as XLSX from "xlsx";
 import { StatCard } from "@/components/shared/StatCard";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Users, TrendingUp, FileText, ChevronDown, UserCheck, Clock3, UserPlus } from "lucide-react";
+import { Users, TrendingUp, FileText, ChevronDown, UserCheck, Clock3, CalendarDays, DollarSign} from "lucide-react";
 // Recharts chart components are used inside dedicated chart components; no direct imports needed here.
 
 // Note: exhibition and demographic datasets were moved to the Exhibitions feature.
@@ -83,6 +83,9 @@ export function Overview() {
   const [genderStartMonth, setGenderStartMonth] = useState("");
   const [genderEndMonth, setGenderEndMonth] = useState("");
   const [cityChartType, setCityChartType] = useState<"vertical" | "horizontal" | "pie">("vertical");
+
+  // Estimate business impact: volunteer hours × $29.95 (Independent Sector hourly value)
+  const businessImpact = overview ? Math.round(overview.hours_logged * 29.95) : null;
 
   const handleUploadClick = () => {
     fileInputRef.current?.click();
@@ -376,13 +379,33 @@ export function Overview() {
         {loading && <p className="text-sm text-slate-600">Loading dashboard...</p>}
         {error && <p className="text-sm text-red-600">{error}</p>}
 
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          <StatCard title="Total Volunteers" value={overview?.total_volunteers ?? "--"} icon={Users} iconColor="bg-blue-600" />
-          <StatCard title="Hours Logged" value={overview?.hours_logged ?? "--"} icon={Clock3} iconColor="bg-orange-500" />
-          <StatCard title="Average Age" value={overview?.average_age ?? "--"} icon={UserPlus} iconColor="bg-green-600" />
-          <StatCard title="Cities Represented" value={overview?.cities_represented ?? "--"} icon={TrendingUp} iconColor="bg-blue-600" />
-        </div>
-
+       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+  <StatCard
+    title="Total Volunteers"
+    value={overview?.total_volunteers ?? "--"}
+    icon={Users}
+    iconColor="bg-blue-600"
+  />
+  <StatCard
+    title="Hours Logged"
+    value={overview?.hours_logged ?? "--"}
+    icon={Clock3}
+    iconColor="bg-orange-500"
+  />
+  <StatCard
+    title="Average Age"
+    value={overview?.average_age ?? "--"}
+    icon={CalendarDays}
+    iconColor="bg-purple-600"
+  />
+  
+  <StatCard
+    title="Business Impact"
+    value={businessImpact !== null ? `$${businessImpact.toLocaleString()}` : "--"}
+    icon={DollarSign}
+    iconColor="bg-green-600"
+  />
+</div>
         <div className="grid grid-cols-1 gap-6">
           <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
             <h2 className="text-xl font-semibold text-slate-900">Last Activity by Month</h2>
