@@ -21,14 +21,22 @@ const COLORS = ["#2563eb", "#ec4899", "#10b981", "#f59e0b", "#8b5cf6"];
 
 // Chart component for volunteer counts grouped by gender.
 export default function VolunteersByGenderPieChart({ data, chartType }: VolunteersByGenderPieChartProps) {
+  const sortedData = [...data].sort((left, right) => {
+    if (right.count !== left.count) {
+      return right.count - left.count;
+    }
+
+    return left.gender.localeCompare(right.gender);
+  });
+
   return (
     <div className="mt-6 h-80">
       {/* Responsive container makes the chart resize nicely */}
       <ResponsiveContainer width="100%" height="100%">
         {chartType === "pie" ? (
           <PieChart>
-            <Pie data={data} dataKey="count" nameKey="gender" cx="50%" cy="50%" outerRadius={100} label>
-              {data.map((entry, index) => (
+            <Pie data={sortedData} dataKey="count" nameKey="gender" cx="50%" cy="50%" outerRadius={100} label>
+              {sortedData.map((entry, index) => (
                 <Cell key={`cell-${entry.gender}`} fill={COLORS[index % COLORS.length]} />
               ))}
             </Pie>
@@ -36,7 +44,7 @@ export default function VolunteersByGenderPieChart({ data, chartType }: Voluntee
             <Legend />
           </PieChart>
         ) : chartType === "bar" ? (
-          <BarChart data={data}>
+          <BarChart data={sortedData}>
             <CartesianGrid strokeDasharray="3 3" />
             <XAxis dataKey="gender" />
             <YAxis allowDecimals={false} />
@@ -44,7 +52,7 @@ export default function VolunteersByGenderPieChart({ data, chartType }: Voluntee
             <Bar dataKey="count" fill="#2563eb" radius={[6, 6, 0, 0]} />
           </BarChart>
         ) : (
-          <BarChart data={data} layout="vertical" margin={{ top: 8, right: 16, left: 24, bottom: 8 }}>
+          <BarChart data={sortedData} layout="vertical" margin={{ top: 8, right: 16, left: 24, bottom: 8 }}>
             <CartesianGrid strokeDasharray="3 3" />
             <XAxis type="number" allowDecimals={false} />
             <YAxis type="category" dataKey="gender" width={100} />

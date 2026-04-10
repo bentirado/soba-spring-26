@@ -133,6 +133,7 @@ export function Overview() {
   const [pendingUploadRows, setPendingUploadRows] = useState<SpreadsheetRow[]>([]);
   const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false);
   const [uploadErrorMessage, setUploadErrorMessage] = useState("");
+  const [isUploading, setIsUploading] = useState(false);
   const [dataActionsOpen, setDataActionsOpen] = useState(false);
   const [rangeOpen, setRangeOpen] = useState(false);
   const [metricOpen, setMetricOpen] = useState(false);
@@ -154,6 +155,7 @@ export function Overview() {
   const [genderStartMonth, setGenderStartMonth] = useState("");
   const [genderEndMonth, setGenderEndMonth] = useState("");
   const [cityChartType, setCityChartType] = useState<"vertical" | "horizontal" | "pie">("vertical");
+  const [dashboardRefreshToken, setDashboardRefreshToken] = useState(0);
 
   const handleUploadClick = () => {
     fileInputRef.current?.click();
@@ -204,11 +206,52 @@ export function Overview() {
     }
   };
 
-  const handleUploadSave = () => {
-    console.log("Selected file:", selectedFileName);
-    console.log("Parsed spreadsheet data:", pendingUploadRows);
-    console.table(pendingUploadRows);
-    resetPendingUpload();
+  const handleUploadSave = async () => {
+    try {
+      setIsUploading(true);
+      setUploadErrorMessage("");
+
+      // Convert the parsed spreadsheet rows into the field names
+      // expected by the backend upload endpoint.
+      const normalizedRows = pendingUploadRows.map((row) => ({
+        City: String(row["City"] ?? ""),
+        State: String(row["State"] ?? ""),
+        Zip: String(row["Zip"] ?? ""),
+        Age: String(row["Age"] ?? ""),
+        Gender: String(row["Gender"] ?? ""),
+        Ethnicity: String(row["Ethnicity"] ?? ""),
+        Dietary_Restrictions: String(row["Dietary Restrictions"] ?? ""),
+        Hispanic_Latino_Or_Spanish: String(row["Hispanic, Latino Or Spanish"] ?? ""),
+        Life_Hours: String(row["Life Hours"] ?? ""),
+        Date_Of_Last_Activity: String(row["Date Of Last Activity"] ?? ""),
+        Age_1: String(row["Age_1"] ?? row["Age.1"] ?? ""),
+      }));
+
+      const response = await fetch(`${apiBaseUrl}/api/volunteers/upload`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          rows: normalizedRows,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to upload volunteer data.");
+      }
+
+      const result = await response.json();
+      console.log("Upload result:", result);
+
+      resetPendingUpload();
+      setDashboardRefreshToken((currentValue) => currentValue + 1);
+    } catch (error) {
+      console.error("Volunteer upload failed:", error);
+      setUploadErrorMessage("Upload failed. Please check the file and try again.");
+    } finally {
+      setIsUploading(false);
+    }
   };
 
   const handleUploadReplace = () => {
@@ -246,6 +289,7 @@ export function Overview() {
   });
 
   const filteredGenderData = genderData;
+  const businessImpact = overview ? overview.hours_logged * 30 : null;
 
   useEffect(() => {
     async function fetchDashboardData() {
@@ -297,7 +341,7 @@ export function Overview() {
     }
 
     fetchDashboardData();
-  }, [apiBaseUrl, genderStartMonth, genderEndMonth]);
+  }, [apiBaseUrl, genderStartMonth, genderEndMonth, dashboardRefreshToken]);
 
   const selectedMetricLabel = metricOptions.find((option) => option.value === selectedMetric)?.label ?? "Participation %";
 
@@ -524,10 +568,10 @@ export function Overview() {
             <button
               type="button"
               onClick={handleUploadSave}
-              disabled={Boolean(uploadErrorMessage)}
+              disabled={Boolean(uploadErrorMessage) || isUploading}
               className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-blue-300"
             >
-              Save
+              {isUploading ? "Saving..." : "Save"}
             </button>
           </DialogFooter>
         </DialogContent>
@@ -546,11 +590,12 @@ export function Overview() {
         {loading && <p className="text-sm text-slate-600">Loading dashboard...</p>}
         {error && <p className="text-sm text-red-600">{error}</p>}
 
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
           <DashboardStatCard title="Total Volunteers" value={overview?.total_volunteers ?? "--"} />
           <DashboardStatCard title="Hours Logged" value={overview?.hours_logged ?? "--"} />
           <DashboardStatCard title="Average Age" value={overview?.average_age ?? "--"} />
           <DashboardStatCard title="Cities Represented" value={overview?.cities_represented ?? "--"} />
+          <DashboardStatCard title="Business Impact" value={businessImpact !== null ? `$${businessImpact.toLocaleString()}` : "--"} />
         </div>
 
         <div className="grid grid-cols-1 gap-6">
