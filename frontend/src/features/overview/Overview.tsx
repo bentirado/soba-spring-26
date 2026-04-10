@@ -379,32 +379,11 @@ export function Overview() {
         {loading && <p className="text-sm text-slate-600">Loading dashboard...</p>}
         {error && <p className="text-sm text-red-600">{error}</p>}
 
-       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-  <StatCard
-    title="Total Volunteers"
-    value={overview?.total_volunteers ?? "--"}
-    icon={Users}
-    iconColor="bg-blue-600"
-  />
-  <StatCard
-    title="Hours Logged"
-    value={overview?.hours_logged ?? "--"}
-    icon={Clock3}
-    iconColor="bg-orange-500"
-  />
-  <StatCard
-    title="Average Age"
-    value={overview?.average_age ?? "--"}
-    icon={CalendarDays}
-    iconColor="bg-purple-600"
-  />
-  
-  <StatCard
-    title="Business Impact"
-    value={businessImpact !== null ? `$${businessImpact.toLocaleString()}` : "--"}
-    icon={DollarSign}
-    iconColor="bg-green-600"
-  />
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+  <StatCard title="Total Volunteers" value={overview?.total_volunteers ?? "--"} icon={Users} iconColor="bg-blue-600"/>
+  <StatCard title="Hours Logged" value={overview?.hours_logged ?? "--"} icon={Clock3} iconColor="bg-orange-500"/>
+  <StatCard title="Average Age" value={overview?.average_age ?? "--"} icon={CalendarDays} iconColor="bg-purple-600"/>
+  <StatCard title="Business Impact" value={businessImpact !== null ? `$${businessImpact.toLocaleString()}` : "--"} icon={DollarSign} iconColor="bg-green-600"/>
 </div>
         <div className="grid grid-cols-1 gap-6">
           <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
