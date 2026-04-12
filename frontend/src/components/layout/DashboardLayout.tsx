@@ -309,7 +309,7 @@ export function DashboardLayout() {
   const navigation = [
     { name: "Overview", href: "/", icon: LayoutDashboard, disabled: false },
     { name: "Volunteers", href: "/volunteers", icon: Users, disabled: false },
-    { name: "Recognition", href: "/recognition", icon: Award, disabled: false },
+    { name: "Recognition", href: "/recognition", icon: Award, disabled: true },
     { name: "Exhibitions", href: "/exhibitions", icon: Presentation, disabled: true },
   ];
 
@@ -318,7 +318,7 @@ export function DashboardLayout() {
   };
 
   return (
-    <div className="flex h-screen bg-slate-50">
+  <div className="flex h-screen bg-background">
       <aside
         className={`bg-[#1f4f99] text-white transition-all duration-300 ${
           sidebarOpen ? "w-64" : "w-0 overflow-hidden"
@@ -347,7 +347,7 @@ export function DashboardLayout() {
                 return (
                   <div
                     key={item.name}
-                    className="flex cursor-not-allowed items-center gap-3 rounded-lg px-4 py-3 text-white/40"
+                    className="flex cursor-not-allowed items-center gap-3 rounded-lg px-4 py-3 text-white/40 pointer-events-none select-none opacity-50"
                     aria-disabled="true"
                     title="Coming soon"
                   >
