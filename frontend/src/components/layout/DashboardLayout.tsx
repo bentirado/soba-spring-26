@@ -347,7 +347,7 @@ export function DashboardLayout() {
                 return (
                   <div
                     key={item.name}
-                    className="flex cursor-not-allowed items-center gap-3 rounded-lg px-4 py-3 text-white/40 pointer-events-none select-none opacity-50"
+                    className="flex items-center gap-3 rounded-lg px-4 py-3 text-white/40 select-none opacity-50 relative cursor-not-allowed"
                     aria-disabled="true"
                     title="Coming soon"
                   >
