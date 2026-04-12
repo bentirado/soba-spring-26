@@ -2,12 +2,6 @@
 node_modules/
 frontend/node_modules/
 
-# Package files (don't overwrite origin)
-package.json
-package-lock.json
-frontend/package.json
-frontend/package-lock.json
-
 # Build output
 dist/
 frontend/dist/
