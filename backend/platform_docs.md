@@ -6,6 +6,7 @@
 - Overview — main dashboard with key metrics and charts
 - Volunteers — volunteer directory, demographics, and hall of fame
 - Recognition — badges, milestones, and reward management
+- Events — create and manage volunteer events, send email invitations
 - Exhibitions — coming soon (disabled, not accessible)
 - Revenue — financial analytics and ticket sales
 
@@ -45,7 +46,31 @@
 - Daily Revenue chart: bar chart by day of week
 - Ticket Sales Analysis table: ticket types with tickets sold, revenue, and avg price
 
+### Events Page ("/events")
+- Create and manage volunteer events for Science Museum Oklahoma
+- Create Event button (top right, blue): opens a form to fill in event name, location, start/end date & time, max volunteers, description, and required skills
+- Required skills are selected from a tag picker: Bilingual, Customer Service, Dependable, Live Performing, Organizing & Cleaning, Problem-Solving, Public Speaking, Teaching, Teamwork, Time Management
+- Events are displayed in a card grid — each card shows event name, description, location, date/time, max volunteers, and skill tags
+- Cancel event: trash icon on each card permanently cancels the event
+- Send Emails to Volunteers button (orange) on each card: opens a preview modal before sending
+  - Preview modal shows two groups of volunteers:
+    - "Skill Match" section: volunteers whose skills match the event's required skills (shown with green skill badges)
+    - "Other Volunteers" section: all remaining active volunteers
+  - Checkboxes on each row to select/deselect individual volunteers
+  - "Select all", "Matched only", and "Deselect all" shortcuts at the bottom
+  - Send button shows how many volunteers will receive the email
+  - Emails are personalized per volunteer using AI (GPT) and sent via Gmail SMTP
+  - Each email mentions the volunteer's matching skills and lists other upcoming events
+
 ### Exhibitions Page — COMING SOON (disabled, not accessible)
+
+### Volunteer Application Page ("/apply") — PUBLIC (no login required)
+- Public-facing form for new volunteers to apply to join Science Museum Oklahoma
+- Accessible without logging in — share this link with prospective volunteers
+- Sections: Personal Info (name, address, phone, email), Availability (days/times), Demographics (age, gender, ethnicity), Skills, Areas of Interest, Message Preferences, and Agreement
+- Submitted applications are saved to the database with status "pending review" (is_active = false)
+- Staff review applications and activate volunteers manually in the system
+- Shows a success confirmation screen after submission
 
 ## Chatbot (BINJOW)
 - The floating chat button is in the bottom-right corner of every page

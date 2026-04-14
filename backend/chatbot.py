@@ -154,6 +154,16 @@ class ChatRequest(BaseModel):
     messages: list[ChatMessage]
 
 
+@router.delete("/api/chat/cache")
+async def clear_chat_cache(db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(ChatCache))
+    entries = result.scalars().all()
+    for entry in entries:
+        await db.delete(entry)
+    await db.flush()
+    return {"cleared": len(entries), "message": "Chat cache cleared successfully."}
+
+
 @router.post("/api/chat")
 async def chat(request: ChatRequest, db: AsyncSession = Depends(get_db)):
     # The last message is the user's current question

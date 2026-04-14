@@ -298,6 +298,7 @@ import {
   Menu,
   Bell,
   LogOut,
+  CalendarDays,
 } from "lucide-react";
 import { useState } from "react";
 import { Chatbot } from "@/components/Chatbot";
@@ -309,6 +310,7 @@ export function DashboardLayout() {
   const navigation = [
     { name: "Overview", href: "/", icon: LayoutDashboard, disabled: false },
     { name: "Volunteers", href: "/volunteers", icon: Users, disabled: false },
+    { name: "Events", href: "/events", icon: CalendarDays, disabled: false },
     { name: "Recognition", href: "/recognition", icon: Award, disabled: true },
     { name: "Exhibitions", href: "/exhibitions", icon: Presentation, disabled: true },
   ];

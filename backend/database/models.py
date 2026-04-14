@@ -58,6 +58,8 @@ class Volunteer(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
     first_name: Mapped[str] = mapped_column(String(100), nullable=False)
     last_name: Mapped[str] = mapped_column(String(100), nullable=False)
+    email: Mapped[Optional[str]] = mapped_column(String(255), nullable=True, index=True)
+    phone: Mapped[Optional[str]] = mapped_column(String(30), nullable=True)
     city: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
     state: Mapped[str] = mapped_column(String(2), nullable=False, default="OK")
     zip: Mapped[Optional[str]] = mapped_column(String(10), nullable=True)
@@ -67,8 +69,10 @@ class Volunteer(Base):
     ethnicity: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
     hispanic_latino: Mapped[Optional[str]] = mapped_column(String(3), nullable=True)  # "Yes" / "No"
     dietary_restrictions: Mapped[str] = mapped_column(String(100), nullable=False, default="None")
-    life_hours: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
-    last_activity: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    volgistics_id: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    joined_date: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
   
 
     # Relationships
@@ -134,6 +138,9 @@ class Skill(Base):
 
     volunteer_skills: Mapped[List["VolunteerSkill"]] = relationship(
         "VolunteerSkill", back_populates="skill", cascade="all, delete-orphan"
+    )
+    event_skills: Mapped[List["EventSkill"]] = relationship(
+        "EventSkill", back_populates="skill", cascade="all, delete-orphan"
     )
 
     def __repr__(self) -> str:
@@ -298,9 +305,30 @@ class Event(Base):
     shifts: Mapped[List["Shift"]] = relationship(
         "Shift", back_populates="event", cascade="all, delete-orphan"
     )
+    event_skills: Mapped[List["EventSkill"]] = relationship(
+        "EventSkill", back_populates="event", cascade="all, delete-orphan"
+    )
 
     def __repr__(self) -> str:
         return f"<Event id={self.id} name='{self.name}' start='{self.start_datetime}'>"
+
+
+class EventSkill(Base):
+    __tablename__ = "event_skills"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    event_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("events.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    skill_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("skills.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+
+    event: Mapped["Event"] = relationship("Event", back_populates="event_skills")
+    skill: Mapped["Skill"] = relationship("Skill", back_populates="event_skills")
+
+    def __repr__(self) -> str:
+        return f"<EventSkill event_id={self.event_id} skill_id={self.skill_id}>"
 
 
 class Shift(Base):
