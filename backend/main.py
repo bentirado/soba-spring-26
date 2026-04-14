@@ -16,6 +16,7 @@ from chatbot import router as chatbot_router
 from events import router as events_router
 from apply import router as apply_router
 from email_bot import router as email_router
+from volunteers import router as volunteers_router
 
 
 # ---------------------------------------------------------------------------
@@ -69,6 +70,7 @@ app.include_router(chatbot_router)
 app.include_router(events_router)
 app.include_router(apply_router)
 app.include_router(email_router)
+app.include_router(volunteers_router)
 
 app.add_middleware(
     CORSMiddleware,
