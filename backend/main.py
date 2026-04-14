@@ -54,6 +54,7 @@ async def load_volunteers_from_db(db: AsyncSession):
             "ethnicity": volunteer.ethnicity,
             "dietary_restrictions": volunteer.dietary_restrictions,
             "hispanic_latino": volunteer.hispanic_latino,
+            "life_hours": volunteer.life_hours,
             "joined_date": volunteer.joined_date.isoformat() if volunteer.joined_date else None,
         }
         for volunteer in volunteers

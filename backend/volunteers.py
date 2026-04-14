@@ -25,6 +25,7 @@ class UploadedVolunteerRow(BaseModel):
     Ethnicity: Optional[str] = None
     Dietary_Restrictions: Optional[str] = None
     Hispanic_Latino_Or_Spanish: Optional[str] = None
+    Life_Hours: Optional[str] = None
     Date_Of_Last_Activity: Optional[str] = None  # mapped to joined_date
     Age_1: Optional[str] = None
 
@@ -47,6 +48,15 @@ def parse_uploaded_date(raw_value: Optional[str]) -> Optional[date]:
         except ValueError:
             continue
     return None
+
+
+def parse_uploaded_float(raw_value: Optional[str]) -> Optional[float]:
+    if not raw_value or not raw_value.strip():
+        return None
+    try:
+        return float(raw_value.strip().replace(",", "").replace("$", ""))
+    except ValueError:
+        return None
 
 
 def parse_uploaded_int(raw_value: Optional[str]) -> Optional[int]:
@@ -96,6 +106,7 @@ async def upload_volunteers(
                 ethnicity=row.Ethnicity or None,
                 hispanic_latino=parse_hispanic_latino(row.Hispanic_Latino_Or_Spanish),
                 dietary_restrictions=row.Dietary_Restrictions or "None",
+                life_hours=parse_uploaded_float(row.Life_Hours),
                 joined_date=parse_uploaded_date(row.Date_Of_Last_Activity),
             )
         )
