@@ -19,48 +19,47 @@ type VolunteersByGenderPieChartProps = {
 // Later we can adjust these if you want a different palette.
 const COLORS = ["#2563eb", "#ec4899", "#10b981", "#f59e0b", "#8b5cf6"];
 
-// Pie chart component for volunteer counts grouped by gender.
+// Chart component for volunteer counts grouped by gender.
 export default function VolunteersByGenderPieChart({ data, chartType }: VolunteersByGenderPieChartProps) {
+  const sortedData = [...data].sort((left, right) => {
+    if (right.count !== left.count) {
+      return right.count - left.count;
+    }
+
+    return left.gender.localeCompare(right.gender);
+  });
+
   return (
     <div className="mt-6 h-80">
       {/* Responsive container makes the chart resize nicely */}
       <ResponsiveContainer width="100%" height="100%">
-        <>
-          {/* Pie chart */}
-          {chartType === "pie" && (
-            <PieChart>
-              <Pie data={data} dataKey="count" nameKey="gender" cx="50%" cy="50%" outerRadius={100} label>
-                {data.map((entry, index) => (
-                  <Cell key={`cell-${entry.gender}`} fill={COLORS[index % COLORS.length]} />
-                ))}
-              </Pie>
-              <Tooltip />
-              <Legend />
-            </PieChart>
-          )}
-
-          {/* Vertical bar / column chart */}
-          {chartType === "bar" && (
-            <BarChart data={data}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="gender" />
-              <YAxis allowDecimals={false} />
-              <Tooltip />
-              <Bar dataKey="count" fill="#2563eb" radius={[6, 6, 0, 0]} />
-            </BarChart>
-          )}
-
-          {/* Horizontal bar chart */}
-          {chartType === "horizontal" && (
-            <BarChart data={data} layout="vertical" margin={{ top: 8, right: 16, left: 24, bottom: 8 }}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis type="number" allowDecimals={false} />
-              <YAxis type="category" dataKey="gender" width={100} />
-              <Tooltip />
-              <Bar dataKey="count" fill="#2563eb" radius={[0, 6, 6, 0]} />
-            </BarChart>
-          )}
-        </>
+        {chartType === "pie" ? (
+          <PieChart>
+            <Pie data={sortedData} dataKey="count" nameKey="gender" cx="50%" cy="50%" outerRadius={100} label>
+              {sortedData.map((entry, index) => (
+                <Cell key={`cell-${entry.gender}`} fill={COLORS[index % COLORS.length]} />
+              ))}
+            </Pie>
+            <Tooltip />
+            <Legend />
+          </PieChart>
+        ) : chartType === "bar" ? (
+          <BarChart data={sortedData}>
+            <CartesianGrid strokeDasharray="3 3" />
+            <XAxis dataKey="gender" />
+            <YAxis allowDecimals={false} />
+            <Tooltip />
+            <Bar dataKey="count" fill="#2563eb" radius={[6, 6, 0, 0]} />
+          </BarChart>
+        ) : (
+          <BarChart data={sortedData} layout="vertical" margin={{ top: 8, right: 16, left: 24, bottom: 8 }}>
+            <CartesianGrid strokeDasharray="3 3" />
+            <XAxis type="number" allowDecimals={false} />
+            <YAxis type="category" dataKey="gender" width={100} />
+            <Tooltip />
+            <Bar dataKey="count" fill="#2563eb" radius={[0, 6, 6, 0]} />
+          </BarChart>
+        )}
       </ResponsiveContainer>
     </div>
   );

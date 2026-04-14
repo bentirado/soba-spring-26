@@ -18,13 +18,21 @@ type VolunteersByCityBarChartProps = {
 const COLORS = ["#10b981", "#3b82f6", "#f59e0b", "#8b5cf6", "#ef4444"];
 
 export default function VolunteersByCityBarChart({ data, chartType }: VolunteersByCityBarChartProps) {
+  const sortedData = [...data].sort((left, right) => {
+    if (right.count !== left.count) {
+      return right.count - left.count;
+    }
+
+    return left.city.localeCompare(right.city);
+  });
+
   if (chartType === "pie") {
     return (
       <div className="mt-6 h-80">
         <ResponsiveContainer width="100%" height="100%">
           <PieChart>
-            <Pie data={data} dataKey="count" nameKey="city" cx="50%" cy="50%" outerRadius={100} label>
-              {data.map((entry, index) => (
+            <Pie data={sortedData} dataKey="count" nameKey="city" cx="50%" cy="50%" outerRadius={100} label>
+              {sortedData.map((entry, index) => (
                 <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
               ))}
             </Pie>
@@ -39,49 +47,42 @@ export default function VolunteersByCityBarChart({ data, chartType }: Volunteers
   return (
     <div className="mt-6 h-80">
       {/* Responsive container makes the chart resize nicely */}
-      {/* Responsive container makes the chart resize nicely */}
       <ResponsiveContainer width="100%" height="100%">
-        <>
-          {/* Vertical column chart */}
-          {chartType === "vertical" && (
-            <BarChart data={data}>
-              {/* Background grid lines */}
-              <CartesianGrid strokeDasharray="3 3" />
+        {chartType === "vertical" ? (
+          <BarChart data={sortedData}>
+            {/* Background grid lines */}
+            <CartesianGrid strokeDasharray="3 3" />
 
-              {/* X-axis uses the city field */}
-              <XAxis dataKey="city" />
+            {/* X-axis uses the city field */}
+            <XAxis dataKey="city" />
 
-              {/* Y-axis uses whole numbers only */}
-              <YAxis allowDecimals={false} />
+            {/* Y-axis uses whole numbers only */}
+            <YAxis allowDecimals={false} />
 
-              {/* Tooltip appears on hover */}
-              <Tooltip />
+            {/* Tooltip appears on hover */}
+            <Tooltip />
 
-              {/* Main bars showing volunteer counts by city */}
-              <Bar dataKey="count" fill="#10b981" radius={[6, 6, 0, 0]} />
-            </BarChart>
-          )}
+            {/* Main bars showing volunteer counts by city */}
+            <Bar dataKey="count" fill="#10b981" radius={[6, 6, 0, 0]} />
+          </BarChart>
+        ) : (
+          <BarChart data={sortedData} layout="vertical" margin={{ top: 8, right: 16, left: 24, bottom: 8 }}>
+            {/* Background grid lines */}
+            <CartesianGrid strokeDasharray="3 3" />
 
-          {/* Horizontal bar chart */}
-          {chartType === "horizontal" && (
-            <BarChart data={data} layout="vertical" margin={{ top: 8, right: 16, left: 24, bottom: 8 }}>
-              {/* Background grid lines */}
-              <CartesianGrid strokeDasharray="3 3" />
+            {/* X-axis becomes the numeric axis in horizontal mode */}
+            <XAxis type="number" allowDecimals={false} />
 
-              {/* X-axis becomes the numeric axis in horizontal mode */}
-              <XAxis type="number" allowDecimals={false} />
+            {/* Y-axis uses the city field in horizontal mode */}
+            <YAxis type="category" dataKey="city" width={100} />
 
-              {/* Y-axis uses the city field in horizontal mode */}
-              <YAxis type="category" dataKey="city" width={100} />
+            {/* Tooltip appears on hover */}
+            <Tooltip />
 
-              {/* Tooltip appears on hover */}
-              <Tooltip />
-
-              {/* Main horizontal bars showing volunteer counts by city */}
-              <Bar dataKey="count" fill="#10b981" radius={[0, 6, 6, 0]} />
-            </BarChart>
-          )}
-        </>
+            {/* Main horizontal bars showing volunteer counts by city */}
+            <Bar dataKey="count" fill="#10b981" radius={[0, 6, 6, 0]} />
+          </BarChart>
+        )}
       </ResponsiveContainer>
     </div>
   );

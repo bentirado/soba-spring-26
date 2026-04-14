@@ -30,6 +30,25 @@ class Base(DeclarativeBase):
 
 
 # ---------------------------------------------------------------------------
+# Chatbot semantic cache
+# ---------------------------------------------------------------------------
+
+class ChatCache(Base):
+    __tablename__ = "chat_cache"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    question: Mapped[str] = mapped_column(Text, nullable=False)
+    embedding: Mapped[str] = mapped_column(Text, nullable=False)  # JSON-serialised float list
+    answer: Mapped[str] = mapped_column(Text, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=datetime.utcnow
+    )
+
+    def __repr__(self) -> str:
+        return f"<ChatCache id={self.id} question='{self.question[:40]}...'>"
+
+
+# ---------------------------------------------------------------------------
 # Core Volunteer Tables
 # ---------------------------------------------------------------------------
 
@@ -39,8 +58,6 @@ class Volunteer(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
     first_name: Mapped[str] = mapped_column(String(100), nullable=False)
     last_name: Mapped[str] = mapped_column(String(100), nullable=False)
-    email: Mapped[str] = mapped_column(String(255), unique=True, nullable=False, index=True)
-    phone: Mapped[Optional[str]] = mapped_column(String(30), nullable=True)
     city: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
     state: Mapped[str] = mapped_column(String(2), nullable=False, default="OK")
     zip: Mapped[Optional[str]] = mapped_column(String(10), nullable=True)
@@ -50,10 +67,6 @@ class Volunteer(Base):
     ethnicity: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
     hispanic_latino: Mapped[Optional[str]] = mapped_column(String(3), nullable=True)  # "Yes" / "No"
     dietary_restrictions: Mapped[str] = mapped_column(String(100), nullable=False, default="None")
-    joined_date: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
-    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
-    volgistics_id: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     life_hours: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
     last_activity: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
   
@@ -89,9 +102,9 @@ class Volunteer(Base):
     agent_recommendations: Mapped[List["AgentRecommendation"]] = relationship(
         "AgentRecommendation", back_populates="volunteer"
     )
-
+    
     def __repr__(self) -> str:
-        return f"<Volunteer id={self.id} name='{self.first_name} {self.last_name}' email='{self.email}'>"
+        return f"<Volunteer id={self.id} name='{self.first_name} {self.last_name}'>"
 
 
 class EmergencyContact(Base):

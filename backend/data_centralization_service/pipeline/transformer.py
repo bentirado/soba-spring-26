@@ -6,17 +6,22 @@ from collections import Counter
 from typing import Any
 
 from ..schema import CanonicalPayload, ExtractedDataset
+from .classifier import classify
 
 
 class TransformAgent:
-    """Transforms extracted datasets into canonical payloads."""
+    """Transforms extracted datasets into canonical payloads.
+
+    Uses hardcoded heuristics for known source types, and falls back to
+    OpenAI classification for unrecognized data when an API key is configured.
+    """
 
     def transform(self, dataset: ExtractedDataset) -> CanonicalPayload:
         if dataset.source_type == "json_records" and dataset.source_name == "mock_volunteers":
             return self._transform_volunteers(dataset)
         if dataset.source_type == "excel_file":
             return self._transform_excel(dataset)
-        return self._transform_stub(dataset)
+        return self._transform_unknown(dataset)
 
     def _transform_volunteers(self, dataset: ExtractedDataset) -> CanonicalPayload:
         volunteers: list[dict[str, Any]] = dataset.payload
@@ -100,18 +105,58 @@ class TransformAgent:
             metadata=dataset.metadata,
         )
 
-    def _transform_stub(self, dataset: ExtractedDataset) -> CanonicalPayload:
-        """Produces a minimal canonical payload for sources not yet fully supported."""
+    def _transform_unknown(self, dataset: ExtractedDataset) -> CanonicalPayload:
+        """Classify unrecognized data with OpenAI, fall back to unprocessed stub."""
+        records = self._extract_flat_records(dataset)
+        fields = self._infer_fields(records)
+
+        # Try AI classification
+        result = classify({
+            "source_name": dataset.source_name,
+            "source_type": dataset.source_type,
+            "fields": fields,
+            "sample_records": records[:3],
+            "metadata": dataset.metadata,
+        })
+
+        if result:
+            return CanonicalPayload(
+                source_name=dataset.source_name,
+                source_type=dataset.source_type,
+                classification=result.classification,
+                fields=fields,
+                sample_records=records,
+                derived_outputs={
+                    "ai_description": result.description,
+                    "ai_suggested_operations": result.suggested_operations,
+                },
+                transformed_payload={"raw_records": records},
+                metadata=dataset.metadata,
+            )
+
         return CanonicalPayload(
             source_name=dataset.source_name,
             source_type=dataset.source_type,
             classification="unprocessed",
-            fields=[],
-            sample_records=[],
+            fields=fields,
+            sample_records=records,
             derived_outputs={},
-            transformed_payload={},
+            transformed_payload={"raw_records": records} if records else {},
             metadata=dataset.metadata,
         )
+
+    def _extract_flat_records(self, dataset: ExtractedDataset) -> list[dict[str, Any]]:
+        """Pull a flat record list from any payload shape."""
+        if isinstance(dataset.payload, list):
+            return dataset.payload
+        if isinstance(dataset.payload, dict):
+            # Excel-style {sheet_name: [rows]} — flatten
+            all_rows: list[dict[str, Any]] = []
+            for rows in dataset.payload.values():
+                if isinstance(rows, list):
+                    all_rows.extend(rows)
+            return all_rows
+        return []
 
     def _infer_fields(self, records: list[dict[str, Any]]) -> list[dict[str, str]]:
         if not records:

@@ -1,18 +1,31 @@
+import type { LucideIcon } from "lucide-react";
+
 // Define the props for a reusable dashboard stat card.
 type StatCardProps = {
   title: string;
   value: string | number;
+  icon?: LucideIcon;
+  iconColor?: string;
 };
 
 // Reusable card component for displaying one overview metric.
-export default function StatCard({ title, value }: StatCardProps) {
+export default function StatCard({ title, value, icon: Icon, iconColor = "bg-blue-600" }: StatCardProps) {
   return (
     <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-      {/* Card label */}
-      <p className="text-sm font-medium text-slate-500">{title}</p>
+      <div className="flex items-start justify-between">
+        <div>
+          {/* Card label */}
+          <p className="text-sm font-medium text-slate-500">{title}</p>
 
-      {/* Main metric value */}
-      <p className="mt-2 text-3xl font-bold text-slate-900">{value}</p>
+          {/* Main metric value */}
+          <p className="mt-2 text-3xl font-bold text-slate-900">{value}</p>
+        </div>
+        {Icon && (
+          <div className={`${iconColor} rounded-lg p-3`}>
+            <Icon className="h-6 w-6 text-white" />
+          </div>
+        )}
+      </div>
     </div>
   );
 }
