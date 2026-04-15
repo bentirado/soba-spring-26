@@ -19,7 +19,7 @@ export function DashboardLayout() {
   const navigation = [
     { name: "Overview", href: "/dashboard", icon: LayoutDashboard, disabled: false },
     { name: "Volunteers", href: "/dashboard/volunteers", icon: Users, disabled: false },
-    { name: "Recognition", href: "/dashboard/recognition", icon: Award, disabled: false },
+    { name: "Recognition", href: "/dashboard/recognition", icon: Award, disabled: true },
     { name: "Exhibitions", href: "/dashboard/exhibitions", icon: Presentation, disabled: true },
   ];
 
