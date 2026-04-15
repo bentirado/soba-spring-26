@@ -27,7 +27,7 @@ def volunteers_by_gender(volunteers):
     gender_counts = Counter()
 
     for volunteer in volunteers:
-        gender = volunteer.get("gender")
+        gender = volunteer.get("gender") or "Unknown"
         gender_counts[gender] += 1
 
     return [
@@ -41,7 +41,7 @@ def volunteers_by_city(volunteers):
     city_counts = Counter()
 
     for volunteer in volunteers:
-        city = volunteer.get("city", "Unknown")
+        city = volunteer.get("city") or "Unknown"
         city_counts[city] += 1
 
     return [

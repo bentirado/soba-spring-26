@@ -22,25 +22,61 @@ interface ChatbotProps {
   onQueryGenerate?: (query: string) => void;
 }
 
-export function Chatbot({ onQueryGenerate }: ChatbotProps) {
-  const [isOpen, setIsOpen] = useState(false);
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      id: "welcome",
-      role: "assistant",
-      content:
-        "Hello! I'm Binjow, your Science Museum of Oklahoma Volunteer Analytics Assistant. How can I help you today?",
-      timestamp: new Date(),
-      // We could add some initial suggestions here to guide users.
-      suggestions: [
-        "Show volunteer trends",
-        "Compare this year vs last year",
-        "Top performers"
-      ]
+const API_BASE_URL =
+  (import.meta.env.VITE_API_BASE_URL as string | undefined)?.replace(/\/$/, "") ??
+  "http://127.0.0.1:8000";
+
+const STORAGE_KEY = "binjow_chat_history";
+const HISTORY_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
+
+const WELCOME_MESSAGE: Message = {
+  id: "welcome",
+  role: "assistant",
+  content:
+    "Hello! I'm Binjow, your Science Museum of Oklahoma assistant. I can help you navigate the platform and find what you need. How can I help you today?",
+  timestamp: new Date(),
+  suggestions: [
+    "How do I upload data?",
+    "Where can I see volunteer trends?",
+    "How do I send a badge?",
+  ],
+};
+
+function loadStoredMessages(): Message[] {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return [WELCOME_MESSAGE];
+    const { messages, savedAt } = JSON.parse(raw) as {
+      messages: Message[];
+      savedAt: number;
+    };
+    if (Date.now() - savedAt > HISTORY_TTL_MS) {
+      localStorage.removeItem(STORAGE_KEY);
+      return [WELCOME_MESSAGE];
     }
-  ]);
+    return messages.map((m) => ({ ...m, timestamp: new Date(m.timestamp) }));
+  } catch {
+    return [WELCOME_MESSAGE];
+  }
+}
+
+function saveMessages(messages: Message[]) {
+  try {
+    localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify({ messages, savedAt: Date.now() })
+    );
+  } catch {
+    // storage full or unavailable — silently ignore
+  }
+}
+
+export function Chatbot({ onQueryGenerate: _onQueryGenerate }: ChatbotProps) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [messages, setMessages] = useState<Message[]>(loadStoredMessages);
   const [inputValue, setInputValue] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState("");
 
   const messagesRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -49,53 +85,71 @@ export function Chatbot({ onQueryGenerate }: ChatbotProps) {
     if (messagesRef.current) {
       messagesRef.current.scrollTo({
         top: messagesRef.current.scrollHeight,
-        behavior
+        behavior,
       });
     }
   };
 
   useEffect(() => {
-    const timeout = setTimeout(() => {
-      scrollToBottom("smooth");
-    }, 50);
-
+    const timeout = setTimeout(() => scrollToBottom("smooth"), 50);
     return () => clearTimeout(timeout);
   }, [messages, isLoading]);
+
+  useEffect(() => {
+    saveMessages(messages);
+  }, [messages]);
 
   const handleSendMessage = async () => {
     if (!inputValue.trim() || isLoading) return;
 
     const currentInput = inputValue.trim();
+    setError("");
 
     const userMessage: Message = {
       id: Date.now().toString(),
       role: "user",
       content: currentInput,
-      timestamp: new Date()
+      timestamp: new Date(),
     };
 
-    setMessages((prev) => [...prev, userMessage]);
+    const updatedMessages = [...messages, userMessage];
+    setMessages(updatedMessages);
     setInputValue("");
     setIsLoading(true);
 
-    setTimeout(() => {
-      const aiResponse = generateAIResponse(currentInput);
+    try {
+      // Build the conversation history to send — exclude the welcome message's
+      // suggestion buttons since those are UI-only and not part of the AI context.
+      const history = updatedMessages
+        .filter((m) => m.id !== "welcome")
+        .map((m) => ({ role: m.role, content: m.content }));
+
+      const response = await fetch(`${API_BASE_URL}/api/chat`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ messages: history }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Server error: ${response.status}`);
+      }
+
+      const data = (await response.json()) as { reply: string };
 
       const assistantMessage: Message = {
         id: (Date.now() + 1).toString(),
         role: "assistant",
-        content: aiResponse.content,
+        content: data.reply,
         timestamp: new Date(),
-        suggestions: aiResponse.suggestions
       };
 
       setMessages((prev) => [...prev, assistantMessage]);
+    } catch (err) {
+      console.error("Chat error:", err);
+      setError("Could not reach the assistant. Please make sure the backend is running.");
+    } finally {
       setIsLoading(false);
-
-      if (onQueryGenerate && aiResponse.query) {
-        onQueryGenerate(aiResponse.query);
-      }
-    }, 1200);
+    }
   };
 
   const handleSuggestionClick = (suggestion: string) => {
@@ -132,7 +186,7 @@ export function Chatbot({ onQueryGenerate }: ChatbotProps) {
             background: "linear-gradient(135deg, #1e5eb8, #ff7b3f)",
             color: "white",
             boxShadow: "0 10px 25px rgba(0,0,0,0.2)",
-            zIndex: 9999
+            zIndex: 9999,
           }}
         >
           <MessageSquare size={24} />
@@ -159,9 +213,10 @@ export function Chatbot({ onQueryGenerate }: ChatbotProps) {
               flexDirection: "column",
               overflow: "hidden",
               zIndex: 9999,
-              border: "1px solid #e5e7eb"
+              border: "1px solid #e5e7eb",
             }}
           >
+            {/* Header */}
             <div
               style={{
                 display: "flex",
@@ -169,7 +224,7 @@ export function Chatbot({ onQueryGenerate }: ChatbotProps) {
                 justifyContent: "space-between",
                 padding: "12px 16px",
                 background: "linear-gradient(90deg, #1e5eb8, #ff7b3f, #2ea86f)",
-                color: "white"
+                color: "white",
               }}
             >
               <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
@@ -183,7 +238,7 @@ export function Chatbot({ onQueryGenerate }: ChatbotProps) {
                     alignItems: "center",
                     justifyContent: "center",
                     padding: 0,
-                    lineHeight: 0
+                    lineHeight: 0,
                   }}
                 >
                   <MessageSquare size={18} color="#1e5eb8" style={{ display: "block" }} />
@@ -191,7 +246,7 @@ export function Chatbot({ onQueryGenerate }: ChatbotProps) {
                 <div>
                   <div style={{ fontWeight: 600, fontSize: "14px" }}>BINJOW AI</div>
                   <div style={{ fontSize: "12px", opacity: 0.9 }}>
-                    Ask about volunteer data
+                    Your platform guide
                   </div>
                 </div>
               </div>
@@ -202,20 +257,21 @@ export function Chatbot({ onQueryGenerate }: ChatbotProps) {
                   background: "transparent",
                   border: "none",
                   color: "white",
-                  cursor: "pointer"
+                  cursor: "pointer",
                 }}
               >
                 <X size={18} />
               </button>
             </div>
 
+            {/* Messages */}
             <div
               ref={messagesRef}
               style={{
                 flex: 1,
                 overflowY: "auto",
                 padding: "16px 12px",
-                background: "#f8fafc"
+                background: "#f8fafc",
               }}
             >
               <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
@@ -224,9 +280,8 @@ export function Chatbot({ onQueryGenerate }: ChatbotProps) {
                     key={message.id}
                     style={{
                       display: "flex",
-                      justifyContent:
-                        message.role === "user" ? "flex-end" : "flex-start",
-                      gap: "8px"
+                      justifyContent: message.role === "user" ? "flex-end" : "flex-start",
+                      gap: "8px",
                     }}
                   >
                     {message.role === "assistant" && (
@@ -239,7 +294,7 @@ export function Chatbot({ onQueryGenerate }: ChatbotProps) {
                           display: "flex",
                           alignItems: "center",
                           justifyContent: "center",
-                          flexShrink: 0
+                          flexShrink: 0,
                         }}
                       >
                         <Bot size={16} color="white" style={{ display: "block" }} />
@@ -251,9 +306,8 @@ export function Chatbot({ onQueryGenerate }: ChatbotProps) {
                         maxWidth: "80%",
                         display: "flex",
                         flexDirection: "column",
-                        alignItems:
-                          message.role === "user" ? "flex-end" : "flex-start",
-                        gap: "6px"
+                        alignItems: message.role === "user" ? "flex-end" : "flex-start",
+                        gap: "6px",
                       }}
                     >
                       <div
@@ -269,22 +323,14 @@ export function Chatbot({ onQueryGenerate }: ChatbotProps) {
                               : "#ffffff",
                           color: message.role === "user" ? "white" : "#1f2937",
                           border:
-                            message.role === "assistant"
-                              ? "1px solid #e5e7eb"
-                              : "none"
+                            message.role === "assistant" ? "1px solid #e5e7eb" : "none",
                         }}
                       >
                         {message.content}
                       </div>
 
                       {message.suggestions && message.suggestions.length > 0 && (
-                        <div
-                          style={{
-                            display: "flex",
-                            flexWrap: "wrap",
-                            gap: "8px"
-                          }}
-                        >
+                        <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
                           {message.suggestions.map((suggestion, idx) => (
                             <button
                               key={idx}
@@ -295,7 +341,7 @@ export function Chatbot({ onQueryGenerate }: ChatbotProps) {
                                 borderRadius: "999px",
                                 border: "1px solid #dbe3ea",
                                 background: "white",
-                                cursor: "pointer"
+                                cursor: "pointer",
                               }}
                             >
                               {suggestion}
@@ -307,7 +353,7 @@ export function Chatbot({ onQueryGenerate }: ChatbotProps) {
                       <span style={{ fontSize: "11px", color: "#6b7280" }}>
                         {message.timestamp.toLocaleTimeString([], {
                           hour: "2-digit",
-                          minute: "2-digit"
+                          minute: "2-digit",
                         })}
                       </span>
                     </div>
@@ -322,7 +368,7 @@ export function Chatbot({ onQueryGenerate }: ChatbotProps) {
                           display: "flex",
                           alignItems: "center",
                           justifyContent: "center",
-                          flexShrink: 0
+                          flexShrink: 0,
                         }}
                       >
                         <User size={16} color="white" style={{ display: "block" }} />
@@ -341,7 +387,7 @@ export function Chatbot({ onQueryGenerate }: ChatbotProps) {
                         background: "linear-gradient(135deg, #1e5eb8, #2ea86f)",
                         display: "flex",
                         alignItems: "center",
-                        justifyContent: "center"
+                        justifyContent: "center",
                       }}
                     >
                       <Bot size={16} color="white" style={{ display: "block" }} />
@@ -356,7 +402,7 @@ export function Chatbot({ onQueryGenerate }: ChatbotProps) {
                         borderRadius: "16px",
                         padding: "10px 12px",
                         fontSize: "14px",
-                        color: "#6b7280"
+                        color: "#6b7280",
                       }}
                     >
                       <Loader2 size={16} className="animate-spin" />
@@ -367,20 +413,26 @@ export function Chatbot({ onQueryGenerate }: ChatbotProps) {
               </div>
             </div>
 
+            {/* Input area */}
             <div
               style={{
                 borderTop: "1px solid #e5e7eb",
                 padding: "12px",
-                background: "white"
+                background: "white",
               }}
             >
+              {error && (
+                <p style={{ fontSize: "12px", color: "#dc2626", marginBottom: "8px" }}>
+                  {error}
+                </p>
+              )}
               <div style={{ display: "flex", gap: "8px", alignItems: "flex-end" }}>
                 <textarea
                   ref={textareaRef}
                   value={inputValue}
                   onChange={(e) => setInputValue(e.target.value)}
                   onKeyDown={handleKeyDown}
-                  placeholder="Ask about volunteer analytics..."
+                  placeholder="Ask how to use the platform..."
                   disabled={isLoading}
                   style={{
                     flex: 1,
@@ -392,7 +444,7 @@ export function Chatbot({ onQueryGenerate }: ChatbotProps) {
                     padding: "10px 12px",
                     fontSize: "14px",
                     outline: "none",
-                    background: "#f8fafc"
+                    background: "#f8fafc",
                   }}
                 />
 
@@ -407,13 +459,12 @@ export function Chatbot({ onQueryGenerate }: ChatbotProps) {
                     cursor: !inputValue.trim() || isLoading ? "not-allowed" : "pointer",
                     background: "linear-gradient(135deg, #1e5eb8, #2ea86f)",
                     color: "white",
-                
                     opacity: !inputValue.trim() || isLoading ? 0.6 : 1,
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
                     padding: 0,
-                    lineHeight: 0
+                    lineHeight: 0,
                   }}
                 >
                   {isLoading ? (
@@ -433,22 +484,4 @@ export function Chatbot({ onQueryGenerate }: ChatbotProps) {
       </AnimatePresence>
     </>
   );
-}
-
-function generateAIResponse(
-  input: string
-): { content: string; suggestions?: string[]; query?: string } {
-  const lowerInput = input.toLowerCase();
-  //These are just example responses based on common analytics queries until we integrate a real AI model.
-    lowerInput.includes("trend") ||
-    lowerInput.includes("quarter") ||
-    lowerInput.includes("month")
-  {
-    return {
-      content:
-        "Hello! I'm Binjow, your Science Museum of Oklahoma Volunteer Analytics Assistant. How can I help you today?",
-      suggestions: ["Suggestion 1", "Suggestion 2"],
-      query: "SELECT * FROM volunteer_hours WHERE period = 'last_quarter'"
-    };
-  }
 }

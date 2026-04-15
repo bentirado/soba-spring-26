@@ -10,6 +10,7 @@ import {
   LogOut,
 } from "lucide-react";
 import { useState } from "react";
+import { Chatbot } from "@/components/Chatbot";
 
 export function DashboardLayout() {
   const location = useLocation();
@@ -29,7 +30,7 @@ export function DashboardLayout() {
   };
 
   return (
-    <div className="flex h-screen bg-slate-50">
+  <div className="flex h-screen bg-background">
       <aside
         className={`bg-[#1f4f99] text-white transition-all duration-300 ${
           sidebarOpen ? "w-64" : "w-0 overflow-hidden"
@@ -58,7 +59,7 @@ export function DashboardLayout() {
                 return (
                   <div
                     key={item.name}
-                    className="flex cursor-not-allowed items-center gap-3 rounded-lg px-4 py-3 text-white/40"
+                    className="flex items-center gap-3 rounded-lg px-4 py-3 text-white/40 select-none opacity-50 relative cursor-not-allowed"
                     aria-disabled="true"
                     title="Coming soon"
                   >
@@ -136,6 +137,8 @@ export function DashboardLayout() {
           <Outlet />
         </main>
       </div>
+
+      <Chatbot />
     </div>
   );
 }

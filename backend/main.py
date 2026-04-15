@@ -1,3 +1,4 @@
+from contextlib import asynccontextmanager
 from fastapi import FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from typing import Optional
@@ -12,6 +13,130 @@ from mock_data.charts import (
     volunteers_by_gender,
     volunteers_by_city,
 )
+from chatbot import router as chatbot_router
+
+
+# ---------------------------------------------------------------------------
+# Startup
+# ---------------------------------------------------------------------------
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    await init_db()
+    yield
+
+
+# ---------------------------------------------------------------------------
+# Helper — load volunteers from DB
+# ---------------------------------------------------------------------------
+
+from pydantic import BaseModel
+from datetime import date, datetime
+from sqlalchemy import delete
+
+
+# One uploaded spreadsheet row from the frontend.
+# The keys match the Excel column names coming from the parsed file.
+class UploadedVolunteerRow(BaseModel):
+    City: Optional[str] = None
+    State: Optional[str] = None
+    Zip: Optional[str] = None
+    Age: Optional[str] = None
+    Gender: Optional[str] = None
+    Ethnicity: Optional[str] = None
+    Dietary_Restrictions: Optional[str] = None
+    Hispanic_Latino_Or_Spanish: Optional[str] = None
+    Life_Hours: Optional[str] = None
+    Date_Of_Last_Activity: Optional[str] = None
+    Age_1: Optional[str] = None
+
+
+# Full request body for the upload endpoint.
+class VolunteerUploadRequest(BaseModel):
+    rows: list[UploadedVolunteerRow]
+
+
+def parse_uploaded_date(raw_value: Optional[str]) -> Optional[date]:
+    if raw_value is None:
+        return None
+
+    cleaned_value = raw_value.strip()
+    if not cleaned_value:
+        return None
+
+    accepted_formats = (
+        "%m/%d/%Y",
+        "%m-%d-%Y",
+        "%Y-%m-%d",
+        "%m/%d/%y",
+        "%m-%d-%y",
+    )
+
+    for date_format in accepted_formats:
+        try:
+            return datetime.strptime(cleaned_value, date_format).date()
+        except ValueError:
+            continue
+
+    raise ValueError(
+        "Unsupported Date_Of_Last_Activity value "
+        f"{cleaned_value!r}. Expected formats like MM/DD/YYYY, MM-DD-YYYY, or YYYY-MM-DD."
+    )
+
+
+def parse_uploaded_int(raw_value: Optional[str]) -> Optional[int]:
+    if raw_value is None:
+        return None
+
+    cleaned_value = (
+        raw_value.strip()
+        .replace(",", "")
+        .replace("$", "")
+    )
+    if not cleaned_value:
+        return None
+
+    return int(float(cleaned_value))
+
+
+def parse_uploaded_float(raw_value: Optional[str]) -> Optional[float]:
+    if raw_value is None:
+        return None
+
+    cleaned_value = (
+        raw_value.strip()
+        .replace(",", "")
+        .replace("$", "")
+    )
+    if not cleaned_value:
+        return None
+
+    return float(cleaned_value)
+
+
+def parse_hispanic_latino(raw_value: Optional[str]) -> Optional[str]:
+    if raw_value is None:
+        return None
+
+    cleaned_value = raw_value.strip()
+    if not cleaned_value:
+        return None
+
+    normalized_value = cleaned_value.lower()
+
+    if normalized_value.startswith("no"):
+        return "No"
+
+    if normalized_value.startswith("yes"):
+        return "Yes"
+
+    if "not hispanic" in normalized_value:
+        return "No"
+
+    if "hispanic" in normalized_value or "latino" in normalized_value or "spanish" in normalized_value:
+        return "Yes"
+
+    return None
 
 # Load volunteers from PostgreSQL and convert them into plain dictionaries
 # that match the shape expected by the existing chart/overview helpers.
@@ -24,7 +149,6 @@ async def load_volunteers_from_db(db: AsyncSession):
             "id": volunteer.id,
             "first_name": volunteer.first_name,
             "last_name": volunteer.last_name,
-            "email": volunteer.email,
             "city": volunteer.city,
             "state": volunteer.state,
             "zip": volunteer.zip,
@@ -40,7 +164,14 @@ async def load_volunteers_from_db(db: AsyncSession):
         for volunteer in volunteers
     ]
 
-app = FastAPI()
+
+# ---------------------------------------------------------------------------
+# App
+# ---------------------------------------------------------------------------
+
+app = FastAPI(lifespan=lifespan)
+
+app.include_router(chatbot_router)
 
 app.add_middleware(
     CORSMiddleware,
@@ -52,6 +183,11 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+# ---------------------------------------------------------------------------
+# Existing endpoints
+# ---------------------------------------------------------------------------
 
 @app.get("/health")
 def health_check():
@@ -83,20 +219,13 @@ async def get_volunteers_by_gender(
 
     if start or end:
         filtered_volunteers = []
-
         for volunteer in volunteers:
             last_activity = volunteer.get("last_activity")
             if not last_activity:
                 continue
-
             month = last_activity[:7]
-
-            is_after_start = not start or month >= start
-            is_before_end = not end or month <= end
-
-            if is_after_start and is_before_end:
+            if (not start or month >= start) and (not end or month <= end):
                 filtered_volunteers.append(volunteer)
-
         volunteers = filtered_volunteers
 
     return volunteers_by_gender(volunteers)
@@ -111,3 +240,51 @@ async def get_volunteers_by_city(
 ):
     volunteers = await load_volunteers_from_db(db)
     return volunteers_by_city(volunteers)
+
+
+# Upload volunteer demographic rows from the frontend and replace
+# the current volunteers table contents with the uploaded data.
+@app.post("/api/volunteers/upload")
+async def upload_volunteers(
+    payload: VolunteerUploadRequest,
+    db: AsyncSession = Depends(get_db),
+):
+    # Remove existing volunteers first so the dashboard reflects only
+    # the latest uploaded spreadsheet data.
+    await db.execute(delete(Volunteer))
+
+    volunteers_to_insert = []
+
+    for index, row in enumerate(payload.rows, start=1):
+        # Convert spreadsheet values safely into the types expected by the DB.
+        age_value = parse_uploaded_int(row.Age)
+        life_hours_value = parse_uploaded_float(row.Life_Hours)
+        last_activity_value = parse_uploaded_date(row.Date_Of_Last_Activity)
+        hispanic_latino_value = parse_hispanic_latino(row.Hispanic_Latino_Or_Spanish)
+
+        volunteers_to_insert.append(
+            Volunteer(
+                # Placeholder name values until we get a file with real names.
+                first_name="Person",
+                last_name=str(index),
+                city=row.City or None,
+                state=(row.State or "OK"),
+                zip=row.Zip or None,
+                age=age_value,
+                age_group=row.Age_1 or None,
+                gender=row.Gender or None,
+                ethnicity=row.Ethnicity or None,
+                hispanic_latino=hispanic_latino_value,
+                dietary_restrictions=row.Dietary_Restrictions or "None",
+                life_hours=life_hours_value,
+                last_activity=last_activity_value,
+            )
+        )
+
+    db.add_all(volunteers_to_insert)
+    await db.commit()
+
+    return {
+        "message": "Volunteer data uploaded successfully.",
+        "rows_inserted": len(volunteers_to_insert),
+    }
