@@ -15,16 +15,9 @@ export function SignIn() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-
-    // Temporary login routing
-    navigate("/");
+    // Navigate to dashboard
+    navigate("/dashboard");
   };
-
-// export function SignIn() {
-//   const handleSubmit = (e: React.FormEvent) => {
-//     e.preventDefault();
-//     console.log("Sign in submitted");
-//   };
 
   return (
     <div className="min-h-screen flex">
@@ -104,7 +97,6 @@ export function SignIn() {
                   id="email"
                   type="email"
                   placeholder="Enter your email"
-                  // required
                   className="focus-visible:ring-2 border-gray-300 placeholder:font-semibold rounded-lg"
                   style={
                     {
@@ -122,7 +114,6 @@ export function SignIn() {
                   id="password"
                   type="password"
                   placeholder="Enter your password"
-                  // required
                   className="focus-visible:ring-2 border-gray-300 placeholder:font-semibold rounded-lg"
                   style={
                     {
