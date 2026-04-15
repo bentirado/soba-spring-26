@@ -30,3 +30,24 @@ Why Python over raw JSON files:
 This will eliminate manual workflow management in the n8n UI and ensures the pipeline
 is fully reproducible from code alone for the client. 
 """
+
+from .pipeline import (
+    DummyDataExtractor,
+    ETLPipeline,
+    Loader,
+    TerminalLoader,
+    TransactionLayer,
+    TransformAgent,
+)
+from .schema import CanonicalPayload, ExtractedDataset
+
+__all__ = [
+    "CanonicalPayload",
+    "DummyDataExtractor",
+    "ETLPipeline",
+    "ExtractedDataset",
+    "Loader",
+    "TerminalLoader",
+    "TransactionLayer",
+    "TransformAgent",
+]
