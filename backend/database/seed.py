@@ -129,7 +129,33 @@ SKILLS = [
     ("Coding/Programming",   "Technology"),
     ("Customer Service",     "General"),
     ("Event Setup",          "General"),
+    # Skills used in the Events UI skill picker
+    ("Bilingual",            "Language"),
+    ("Dependable",           "General"),
+    ("Live Performing",      "Arts"),
+    ("Organizing & Cleaning","General"),
+    ("Problem-Solving",      "General"),
+    ("Public Speaking",      "Communication"),
+    ("Teaching",             "Education"),
+    ("Teamwork",             "General"),
+    ("Time Management",      "General"),
 ]
+
+# Maps partial event name substrings -> list of skill names to attach
+EVENT_SKILL_MAP = {
+    "Summer Science Camp":   ["Teaching", "Public Speaking", "Teamwork"],
+    "Astronomy":             ["Teaching", "Problem-Solving"],
+    "STEM Fair":             ["Bilingual", "Teaching", "Customer Service"],
+    "Chemistry":             ["Public Speaking", "Dependable", "Teaching"],
+    "Engineering":           ["Problem-Solving", "Teamwork"],
+    "Coding":                ["Teaching", "Problem-Solving"],
+    "Orientation":           ["Teamwork", "Dependable"],
+    "Community":             ["Bilingual", "Customer Service"],
+    "Science Night":         ["Teaching", "Public Speaking"],
+    "Family Science":        ["Teaching", "Teamwork", "Customer Service"],
+    "Robot Rumble":          ["Problem-Solving", "Teaching"],
+    "Health":                ["Dependable", "Customer Service"],
+}
 
 CERTIFICATIONS = [
     ("Background Check",        "Required background screening for all volunteers.", 730),
@@ -329,7 +355,6 @@ def insert_volunteers(cur) -> list[int]:
         dietary = random.choices(DIETARY_OPTIONS, weights=DIETARY_WEIGHTS, k=1)[0]
         joined_date = random_date_between(date(2019, 1, 1), date(2025, 6, 1))
         life_hours = round(random.uniform(1.0, 250.0), 1)
-        last_activity = random_date_between(joined_date, date(2026, 3, 1))
         is_active = random.random() < 0.80
         volgistics_id = random.randint(100000, 999999)
         notes = fake.sentence() if random.random() < 0.3 else None
@@ -339,18 +364,18 @@ def insert_volunteers(cur) -> list[int]:
             INSERT INTO volunteers (
                 first_name, last_name, email, phone, city, state, zip, age, age_group,
                 gender, ethnicity, hispanic_latino, dietary_restrictions,
-                joined_date, life_hours, last_activity, is_active, volgistics_id, notes
+                joined_date, life_hours, is_active, volgistics_id, notes
             )
             VALUES
                 (%s, %s, %s, %s, %s, 'OK', %s, %s, %s,
                  %s, %s, %s, %s,
-                 %s, %s, %s, %s, %s, %s)
+                 %s, %s, %s, %s, %s)
             RETURNING id
             """,
             (
                 first, last, email, phone, city, zip_code, age, age_group,
                 gender, ethnicity, hispanic_latino, dietary,
-                joined_date, life_hours, last_activity, is_active, volgistics_id, notes,
+                joined_date, life_hours, is_active, volgistics_id, notes,
             ),
         )
         ids.append(cur.fetchone()[0])
@@ -553,6 +578,34 @@ def insert_events(cur, program_ids: list[int]) -> list[dict]:
         )
 
     return events
+
+
+def insert_event_skills(cur, events: list[dict]) -> None:
+    """Attach skills to events based on their name using EVENT_SKILL_MAP."""
+    for event in events:
+        event_name = event["name"]
+        skills_to_attach: list[str] = []
+
+        for keyword, skill_names in EVENT_SKILL_MAP.items():
+            if keyword.lower() in event_name.lower():
+                skills_to_attach = skill_names
+                break
+
+        for skill_name in skills_to_attach:
+            cur.execute("SELECT id FROM skills WHERE name = %s", (skill_name,))
+            row = cur.fetchone()
+            if not row:
+                continue
+            skill_id = row[0]
+            cur.execute(
+                "SELECT 1 FROM event_skills WHERE event_id = %s AND skill_id = %s",
+                (event["id"], skill_id),
+            )
+            if not cur.fetchone():
+                cur.execute(
+                    "INSERT INTO event_skills (event_id, skill_id) VALUES (%s, %s)",
+                    (event["id"], skill_id),
+                )
 
 
 def insert_shifts(cur, events: list[dict]) -> list[dict]:
@@ -1012,6 +1065,9 @@ def seed() -> None:
         print("Seeding events (30)...")
         events = insert_events(cur, program_ids)
 
+        print("Seeding event skills...")
+        insert_event_skills(cur, events)
+
         print("Seeding shifts...")
         shifts = insert_shifts(cur, events)
 
@@ -1045,7 +1101,7 @@ def seed() -> None:
         print(f"  Certifications:      {len(cert_ids)}")
         print(f"  Programs:            {len(program_ids)}")
         print(f"  Volunteers:          {len(volunteer_ids)}")
-        print(f"  Events:              {len(events)}")
+        print(f"  Events:              {len(events)} (with skill tags)")
         print(f"  Shifts:              {len(shifts)}")
         print(f"  Shift Assignments:   {len(assignments)}")
         print(f"  Agent Runs:          {len(agent_run_ids)}")

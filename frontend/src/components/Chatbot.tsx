@@ -252,7 +252,13 @@ export function Chatbot({ onQueryGenerate: _onQueryGenerate }: ChatbotProps) {
               </div>
 
               <button
-                onClick={() => setIsOpen(false)}
+                onClick={() => {
+                  localStorage.removeItem(STORAGE_KEY);
+                  setMessages([WELCOME_MESSAGE]);
+                  setInputValue("");
+                  setError("");
+                  setIsOpen(false);
+                }}
                 style={{
                   background: "transparent",
                   border: "none",

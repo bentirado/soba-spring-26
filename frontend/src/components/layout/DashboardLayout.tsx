@@ -8,6 +8,7 @@ import {
   Menu,
   Bell,
   LogOut,
+  CalendarDays,
 } from "lucide-react";
 import { useState } from "react";
 import { Chatbot } from "@/components/Chatbot";
@@ -19,6 +20,7 @@ export function DashboardLayout() {
   const navigation = [
     { name: "Overview", href: "/dashboard", icon: LayoutDashboard, disabled: false },
     { name: "Volunteers", href: "/dashboard/volunteers", icon: Users, disabled: false },
+    { name: "Events", href: "/dashboard/events", icon: CalendarDays, disabled: false },
     { name: "Recognition", href: "/dashboard/recognition", icon: Award, disabled: true },
     { name: "Exhibitions", href: "/dashboard/exhibitions", icon: Presentation, disabled: true },
   ];
