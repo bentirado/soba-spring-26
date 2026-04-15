@@ -1,4 +1,4 @@
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -11,9 +11,12 @@ import {
 } from "@/components/ui/card";
 
 export function SignIn() {
+  const navigate = useNavigate();
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    console.log("Sign in submitted");
+    // Navigate to dashboard
+    navigate("/dashboard");
   };
 
   return (
@@ -94,7 +97,6 @@ export function SignIn() {
                   id="email"
                   type="email"
                   placeholder="Enter your email"
-                  required
                   className="focus-visible:ring-2 border-gray-300 placeholder:font-semibold rounded-lg"
                   style={
                     {
@@ -112,7 +114,6 @@ export function SignIn() {
                   id="password"
                   type="password"
                   placeholder="Enter your password"
-                  required
                   className="focus-visible:ring-2 border-gray-300 placeholder:font-semibold rounded-lg"
                   style={
                     {
