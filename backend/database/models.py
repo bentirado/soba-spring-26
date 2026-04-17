@@ -73,6 +73,7 @@ class Volunteer(Base):
     notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     volgistics_id: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     joined_date: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
+    last_activity: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
     life_hours: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
   
 

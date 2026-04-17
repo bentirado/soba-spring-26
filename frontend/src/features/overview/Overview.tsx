@@ -3,6 +3,7 @@ import LastActivityChart from "@/components/LastActivityChart";
 import DashboardStatCard from "@/components/StatCard";
 import VolunteersByCityBarChart from "@/components/VolunteersByCityBarChart";
 import VolunteersByGenderPieChart from "@/components/VolunteersByGenderPieChart";
+import VolunteerBreakdownChart from "@/components/VolunteerBreakdownChart";
 import * as XLSX from "xlsx";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { FileText, ChevronDown, Users, Clock3, Cake, MapPin, DollarSign } from "lucide-react";
@@ -49,6 +50,16 @@ type CityBreakdownPoint = {
   count: number;
 };
 
+type AgeGroupBreakdownPoint = {
+  age_group: string;
+  count: number;
+};
+
+type EthnicityBreakdownPoint = {
+  ethnicity: string;
+  count: number;
+};
+
 export function Overview() {
   const apiBaseUrl = import.meta.env.VITE_API_BASE_URL?.replace(/\/$/, "") || "http://127.0.0.1:8000";
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -68,6 +79,8 @@ export function Overview() {
   const [lastActivityData, setLastActivityData] = useState<LastActivityPoint[]>([]);
   const [genderData, setGenderData] = useState<GenderBreakdownPoint[]>([]);
   const [cityData, setCityData] = useState<CityBreakdownPoint[]>([]);
+  const [ageGroupData, setAgeGroupData] = useState<AgeGroupBreakdownPoint[]>([]);
+  const [ethnicityData, setEthnicityData] = useState<EthnicityBreakdownPoint[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [lastActivityChartType, setLastActivityChartType] = useState<"line" | "bar" | "area">("line");
@@ -77,6 +90,8 @@ export function Overview() {
   const [genderStartMonth, setGenderStartMonth] = useState("");
   const [genderEndMonth, setGenderEndMonth] = useState("");
   const [cityChartType, setCityChartType] = useState<"vertical" | "horizontal" | "pie">("vertical");
+  const [ageGroupChartType, setAgeGroupChartType] = useState<"pie" | "bar" | "horizontal">("bar");
+  const [ethnicityChartType, setEthnicityChartType] = useState<"pie" | "bar" | "horizontal">("horizontal");
   const [dashboardRefreshToken, setDashboardRefreshToken] = useState(0);
 
   const handleUploadClick = () => {
@@ -205,6 +220,14 @@ export function Overview() {
   });
 
   const filteredGenderData = genderData;
+  const ageGroupChartData = ageGroupData.map((item) => ({
+    label: item.age_group,
+    count: item.count,
+  }));
+  const ethnicityChartData = ethnicityData.map((item) => ({
+    label: item.ethnicity,
+    count: item.count,
+  }));
   const businessImpact = overview ? overview.hours_logged * 30 : null;
 
   useEffect(() => {
@@ -248,6 +271,24 @@ export function Overview() {
 
         const cityChartData: CityBreakdownPoint[] = await cityChartResponse.json();
         setCityData(cityChartData);
+
+        const ageGroupChartResponse = await fetch(`${apiBaseUrl}/api/charts/volunteers-by-age-group`);
+
+        if (!ageGroupChartResponse.ok) {
+          throw new Error("Failed to fetch age group chart data");
+        }
+
+        const ageGroupChartData: AgeGroupBreakdownPoint[] = await ageGroupChartResponse.json();
+        setAgeGroupData(ageGroupChartData);
+
+        const ethnicityChartResponse = await fetch(`${apiBaseUrl}/api/charts/volunteers-by-ethnicity`);
+
+        if (!ethnicityChartResponse.ok) {
+          throw new Error("Failed to fetch ethnicity chart data");
+        }
+
+        const ethnicityChartData: EthnicityBreakdownPoint[] = await ethnicityChartResponse.json();
+        setEthnicityData(ethnicityChartData);
       } catch (err) {
         console.error("Dashboard fetch error:", err);
         setError("Could not load dashboard data.");
@@ -482,7 +523,7 @@ export function Overview() {
 
           <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
             <h2 className="text-xl font-semibold text-slate-900">Volunteers by Gender</h2>
-            <p className="mt-1 text-sm text-slate-500">Gender breakdown of volunteers from the mock dataset.</p>
+            <p className="mt-1 text-sm text-slate-500">Gender breakdown of volunteers from the volunteers table.</p>
 
             <div className="mt-4 flex flex-col gap-4 md:flex-row md:items-end">
               <div className="flex flex-col">
@@ -520,6 +561,50 @@ export function Overview() {
             </div>
 
             <VolunteersByGenderPieChart data={filteredGenderData} chartType={genderChartType} />
+          </div>
+
+          <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+            <h2 className="text-xl font-semibold text-slate-900">Volunteers by Age Group</h2>
+            <p className="mt-1 text-sm text-slate-500">Age group breakdown of volunteers from the volunteers table.</p>
+
+            <div className="mt-4 flex flex-col">
+              <label className="mb-1 text-sm font-medium text-slate-700">Chart Type</label>
+              <select
+                value={ageGroupChartType}
+                onChange={(event) => setAgeGroupChartType(event.target.value as "pie" | "bar" | "horizontal")}
+                className="w-full max-w-xs rounded-md border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm"
+              >
+                <option value="bar">Bar / Column Chart</option>
+                <option value="horizontal">Horizontal Bar Chart</option>
+                <option value="pie">Pie Chart</option>
+              </select>
+            </div>
+
+            <VolunteerBreakdownChart
+              data={ageGroupChartData}
+              chartType={ageGroupChartType}
+              sortMode="preserve"
+            />
+          </div>
+
+          <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+            <h2 className="text-xl font-semibold text-slate-900">Volunteers by Ethnicity</h2>
+            <p className="mt-1 text-sm text-slate-500">Ethnicity breakdown of volunteers from the volunteers table.</p>
+
+            <div className="mt-4 flex flex-col">
+              <label className="mb-1 text-sm font-medium text-slate-700">Chart Type</label>
+              <select
+                value={ethnicityChartType}
+                onChange={(event) => setEthnicityChartType(event.target.value as "pie" | "bar" | "horizontal")}
+                className="w-full max-w-xs rounded-md border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm"
+              >
+                <option value="horizontal">Horizontal Bar Chart</option>
+                <option value="bar">Bar / Column Chart</option>
+                <option value="pie">Pie Chart</option>
+              </select>
+            </div>
+
+            <VolunteerBreakdownChart data={ethnicityChartData} chartType={ethnicityChartType} />
           </div>
         </div>
       </div>

@@ -13,8 +13,12 @@ Usage:
 
 import os
 import random
+import re
 import sys
+import zipfile
 from datetime import date, datetime, timedelta, timezone
+from pathlib import Path
+from xml.etree import ElementTree as ET
 
 
 import psycopg2
@@ -72,6 +76,8 @@ OK_CITIES_ZIPS = {
 }
 
 OK_CITIES = list(OK_CITIES_ZIPS.keys())
+BACKEND_ROOT = Path(__file__).resolve().parents[1]
+DEMOGRAPHIC_WORKBOOK = BACKEND_ROOT / "dummy_data" / "Demographic data for Active Volunteers at SMO.xlsx"
 
 
 def random_city_zip():
@@ -112,6 +118,162 @@ def to_aware(dt: datetime) -> datetime:
     if dt.tzinfo is None:
         return dt.replace(tzinfo=timezone.utc)
     return dt
+
+
+def parse_optional_int(raw_value) -> int | None:
+    if raw_value is None:
+        return None
+    cleaned = str(raw_value).strip().replace(",", "")
+    if not cleaned:
+        return None
+    try:
+        parsed = int(float(cleaned))
+    except ValueError:
+        return None
+    return parsed if parsed > 0 else None
+
+
+def parse_optional_float(raw_value) -> float | None:
+    if raw_value is None:
+        return None
+    cleaned = str(raw_value).strip().replace(",", "").replace("$", "")
+    if not cleaned:
+        return None
+    try:
+        return float(cleaned)
+    except ValueError:
+        return None
+
+
+def parse_optional_date(raw_value) -> date | None:
+    if raw_value is None:
+        return None
+    cleaned = str(raw_value).strip()
+    if not cleaned:
+        return None
+    for fmt in ("%m/%d/%Y", "%m-%d-%Y", "%Y-%m-%d", "%m/%d/%y", "%m-%d-%y"):
+        try:
+            return datetime.strptime(cleaned, fmt).date()
+        except ValueError:
+            continue
+    if cleaned.replace(".", "", 1).isdigit():
+        try:
+            # Excel serial date system
+            return date(1899, 12, 30) + timedelta(days=int(float(cleaned)))
+        except ValueError:
+            return None
+    return None
+
+
+def parse_hispanic_latino_value(raw_value) -> str | None:
+    if raw_value is None:
+        return None
+    cleaned = str(raw_value).strip().lower()
+    if not cleaned:
+        return None
+    if cleaned.startswith("no") or "not hispanic" in cleaned:
+        return "No"
+    if cleaned.startswith("yes") or "hispanic" in cleaned or "latino" in cleaned or "spanish" in cleaned:
+        return "Yes"
+    return None
+
+
+def normalize_city(raw_value) -> str | None:
+    if raw_value is None:
+        return None
+    cleaned = str(raw_value).strip()
+    if not cleaned:
+        return None
+    return " ".join(part.capitalize() for part in cleaned.split())
+
+
+def dedupe_headers(headers: list[str]) -> list[str]:
+    seen: dict[str, int] = {}
+    result: list[str] = []
+    for header in headers:
+        cleaned = header.strip()
+        if not cleaned:
+            result.append("")
+            continue
+        count = seen.get(cleaned, 0)
+        result.append(cleaned if count == 0 else f"{cleaned}_{count}")
+        seen[cleaned] = count + 1
+    return result
+
+
+def column_index_from_ref(cell_ref: str) -> int:
+    match = re.match(r"([A-Z]+)", cell_ref)
+    if not match:
+        return 0
+    column_letters = match.group(1)
+    index = 0
+    for char in column_letters:
+        index = index * 26 + (ord(char) - ord("A") + 1)
+    return index - 1
+
+
+def load_demographic_rows() -> list[dict[str, str]]:
+    ns = {
+        "a": "http://schemas.openxmlformats.org/spreadsheetml/2006/main",
+        "r": "http://schemas.openxmlformats.org/officeDocument/2006/relationships",
+    }
+
+    with zipfile.ZipFile(DEMOGRAPHIC_WORKBOOK) as workbook_zip:
+        shared_strings: list[str] = []
+        if "xl/sharedStrings.xml" in workbook_zip.namelist():
+            shared_root = ET.fromstring(workbook_zip.read("xl/sharedStrings.xml"))
+            for si in shared_root.findall("a:si", ns):
+                shared_strings.append("".join(node.text or "" for node in si.iterfind(".//a:t", ns)))
+
+        workbook_root = ET.fromstring(workbook_zip.read("xl/workbook.xml"))
+        workbook_rels = ET.fromstring(workbook_zip.read("xl/_rels/workbook.xml.rels"))
+        rel_targets = {
+            rel.attrib["Id"]: rel.attrib["Target"]
+            for rel in workbook_rels
+        }
+        first_sheet = next(iter(workbook_root.find("a:sheets", ns)))
+        relationship_id = first_sheet.attrib["{http://schemas.openxmlformats.org/officeDocument/2006/relationships}id"]
+        sheet_path = "xl/" + rel_targets[relationship_id]
+        sheet_root = ET.fromstring(workbook_zip.read(sheet_path))
+        sheet_rows = sheet_root.find("a:sheetData", ns).findall("a:row", ns)
+
+        def parse_cell_value(cell) -> str:
+            cell_type = cell.attrib.get("t")
+            value_node = cell.find("a:v", ns)
+            if value_node is not None:
+                raw = value_node.text or ""
+                return shared_strings[int(raw)] if cell_type == "s" else raw
+            inline_node = cell.find("a:is", ns)
+            if inline_node is not None:
+                return "".join(node.text or "" for node in inline_node.iterfind(".//a:t", ns))
+            return ""
+
+        def parse_row(row) -> list[str]:
+            values: list[str] = []
+            for cell in row.findall("a:c", ns):
+                column_index = column_index_from_ref(cell.attrib.get("r", "A1"))
+                while len(values) <= column_index:
+                    values.append("")
+                values[column_index] = parse_cell_value(cell).strip()
+            return values
+
+        parsed_rows = [parse_row(row) for row in sheet_rows]
+        if not parsed_rows:
+            return []
+
+        headers = dedupe_headers([str(value) if value is not None else "" for value in parsed_rows[0]])
+        records: list[dict[str, str]] = []
+        for row in parsed_rows[1:]:
+            if not any(value.strip() for value in row):
+                continue
+            record = {
+                header: row[index] if index < len(row) else ""
+                for index, header in enumerate(headers)
+                if header
+            }
+            records.append(record)
+
+    return records
 
 
 # ---------------------------------------------------------------------------
@@ -331,8 +493,9 @@ def insert_programs(cur) -> list[int]:
 def insert_volunteers(cur) -> list[int]:
     ids = []
     used_emails: set[str] = set()
+    demographic_rows = load_demographic_rows()
 
-    for _ in range(100):
+    for row in demographic_rows:
         first = fake.first_name()
         last = fake.last_name()
 
@@ -346,36 +509,40 @@ def insert_volunteers(cur) -> list[int]:
         used_emails.add(email)
 
         phone = fake.numerify("(###) ###-####")
-        city, zip_code = random_city_zip()
-        age = random.randint(16, 75)
-        age_group = compute_age_group(age)
-        gender = random.choices(GENDERS, weights=GENDER_WEIGHTS, k=1)[0]
-        ethnicity = random.choices(ETHNICITIES, weights=ETHNICITY_WEIGHTS, k=1)[0]
-        hispanic_latino = "Yes" if ethnicity == "Hispanic or Latino" else random.choices(["Yes", "No"], weights=[0.10, 0.90], k=1)[0]
-        dietary = random.choices(DIETARY_OPTIONS, weights=DIETARY_WEIGHTS, k=1)[0]
-        joined_date = random_date_between(date(2019, 1, 1), date(2025, 6, 1))
-        life_hours = round(random.uniform(1.0, 250.0), 1)
-        is_active = random.random() < 0.80
+        city = normalize_city(row.get("City"))
+        zip_code = str(row.get("Zip", "")).strip() or None
+        state = str(row.get("State", "")).strip().upper() or "OK"
+        age = parse_optional_int(row.get("Age"))
+        age_group = str(row.get("Age_1", "")).strip() or (compute_age_group(age) if age is not None else None)
+        gender = str(row.get("Gender", "")).strip() or None
+        ethnicity = str(row.get("Ethnicity", "")).strip() or None
+        hispanic_latino = parse_hispanic_latino_value(row.get("Hispanic, Latino Or Spanish"))
+        dietary = str(row.get("Dietary Restrictions", "")).strip() or "None"
+        last_activity = parse_optional_date(row.get("Date Of Last Activity"))
+        join_end = min(last_activity, date(2025, 6, 1)) if last_activity else date(2025, 6, 1)
+        joined_date = random_date_between(date(2019, 1, 1), join_end)
+        life_hours = parse_optional_float(row.get("Life Hours")) or 0.0
+        is_active = True
         volgistics_id = random.randint(100000, 999999)
-        notes = fake.sentence() if random.random() < 0.3 else None
+        notes = "Seeded from demographic workbook"
 
         cur.execute(
             """
             INSERT INTO volunteers (
                 first_name, last_name, email, phone, city, state, zip, age, age_group,
                 gender, ethnicity, hispanic_latino, dietary_restrictions,
-                joined_date, life_hours, is_active, volgistics_id, notes
+                joined_date, last_activity, life_hours, is_active, volgistics_id, notes
             )
             VALUES
-                (%s, %s, %s, %s, %s, 'OK', %s, %s, %s,
+                (%s, %s, %s, %s, %s, %s, %s, %s, %s,
                  %s, %s, %s, %s,
-                 %s, %s, %s, %s, %s)
+                 %s, %s, %s, %s, %s, %s)
             RETURNING id
             """,
             (
-                first, last, email, phone, city, zip_code, age, age_group,
+                first, last, email, phone, city, state, zip_code, age, age_group,
                 gender, ethnicity, hispanic_latino, dietary,
-                joined_date, life_hours, is_active, volgistics_id, notes,
+                joined_date, last_activity, life_hours, is_active, volgistics_id, notes,
             ),
         )
         ids.append(cur.fetchone()[0])
@@ -1044,7 +1211,7 @@ def seed() -> None:
         print("Seeding programs...")
         program_ids = insert_programs(cur)
 
-        print("Seeding volunteers (100)...")
+        print("Seeding volunteers from demographic workbook...")
         volunteer_ids = insert_volunteers(cur)
 
         print("Seeding emergency contacts...")
