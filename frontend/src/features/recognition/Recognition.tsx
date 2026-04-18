@@ -1,110 +1,35 @@
-import {
-  Award,
-  CalendarHeart,
-  Shield,
-  Star,
-  Sun,
-  Zap,
-  Coffee,
-  Gift,
-  Trophy,
-} from "lucide-react";
+import { useEffect, useState } from "react";
+import { Trophy } from "lucide-react";
 
-const milestoneBadges = [
-  {
-    title: "Century Club",
-    subtitle: "100+ lifetime hours",
-    earnedBy: "42 vols",
-    icon: Trophy,
-    iconBg: "bg-yellow-50",
-    iconText: "text-amber-500",
-    border: "border-yellow-200",
-  },
-  {
-    title: "One Year Strong",
-    subtitle: "1 year anniversary",
-    earnedBy: "85 vols",
-    icon: CalendarHeart,
-    iconBg: "bg-green-50",
-    iconText: "text-emerald-500",
-    border: "border-green-200",
-  },
-  {
-    title: "Community Pillar",
-    subtitle: "50+ events attended",
-    earnedBy: "18 vols",
-    icon: Shield,
-    iconBg: "bg-blue-50",
-    iconText: "text-blue-500",
-    border: "border-blue-200",
-  },
-  {
-    title: "Super Mentor",
-    subtitle: "Trained 5+ newbies",
-    earnedBy: "12 vols",
-    icon: Star,
-    iconBg: "bg-purple-50",
-    iconText: "text-purple-500",
-    border: "border-purple-200",
-  },
-];
+const API_BASE_URL =
+  (import.meta.env.VITE_API_BASE_URL as string | undefined)?.replace(/\/$/, "") ??
+  "http://127.0.0.1:8000";
 
-const welcomeTreats = [
-  {
-    title: "First Shift",
-    subtitle: "Completed orientation",
-    icon: Sun,
-    iconBg: "bg-orange-50",
-    iconText: "text-orange-500",
-    border: "border-orange-100",
-  },
-  {
-    title: "Fast Starter",
-    subtitle: "3 shifts in first month",
-    icon: Zap,
-    iconBg: "bg-yellow-50",
-    iconText: "text-yellow-500",
-    border: "border-yellow-100",
-  },
-  {
-    title: "Coffee on Us",
-    subtitle: "Virtual $5 gift card",
-    icon: Coffee,
-    iconBg: "bg-stone-50",
-    iconText: "text-stone-500",
-    border: "border-stone-200",
-  },
-  {
-    title: "Welcome Swag",
-    subtitle: "T-shirt dispatched",
-    icon: Gift,
-    iconBg: "bg-pink-50",
-    iconText: "text-pink-500",
-    border: "border-pink-100",
-  },
-];
+type Volunteer = {
+  id: number;
+  first_name: string;
+  last_name: string;
+  life_hours: number | null;
+};
 
-// Hall of Fame data (moved from Volunteers page)
-const topThree = [
-  {
-    rank: 2,
-    name: "Michael Chen",
-    hours: 132,
-    initials: "MC",
-    badgeBg: "bg-slate-100",
-    badgeText: "text-slate-700",
-    ring: "border-slate-300",
-    podiumBg: "bg-slate-100",
-    podiumText: "text-slate-400",
-    podiumHeight: "h-24",
-    iconBg: "bg-slate-100",
-    iconText: "text-slate-500",
-  },
-  {
-    rank: 1,
-    name: "Sarah Jenkins",
-    hours: 145,
-    initials: "SJ",
+type HallOfFameEntry = {
+  id: number;
+  rank: number;
+  name: string;
+  hours: number;
+  initials: string;
+  badgeBg: string;
+  badgeText: string;
+  ring: string;
+  podiumBg: string;
+  podiumText: string;
+  podiumHeight: string;
+  iconBg: string;
+  iconText: string;
+};
+
+const rankStyles = {
+  1: {
     badgeBg: "bg-yellow-100",
     badgeText: "text-amber-700",
     ring: "border-yellow-400",
@@ -114,11 +39,17 @@ const topThree = [
     iconBg: "bg-yellow-100",
     iconText: "text-amber-500",
   },
-  {
-    rank: 3,
-    name: "Elena Rodriguez",
-    hours: 118,
-    initials: "ER",
+  2: {
+    badgeBg: "bg-slate-100",
+    badgeText: "text-slate-700",
+    ring: "border-slate-300",
+    podiumBg: "bg-slate-100",
+    podiumText: "text-slate-400",
+    podiumHeight: "h-24",
+    iconBg: "bg-slate-100",
+    iconText: "text-slate-500",
+  },
+  3: {
     badgeBg: "bg-orange-50",
     badgeText: "text-orange-700",
     ring: "border-orange-300",
@@ -128,136 +59,97 @@ const topThree = [
     iconBg: "bg-orange-50",
     iconText: "text-orange-400",
   },
-];
+} as const;
 
-const honorableMentions = [
-  { rank: 4, name: "David Kim", role: "Greeter", hours: 95, initials: "DK" },
-  { rank: 5, name: "Jessica Taylor", role: "Kitchen Staff", hours: 88, initials: "JT" },
-  { rank: 6, name: "Marcus Johnson", role: "Delivery Driver", hours: 82, initials: "MJ" },
-];
+function getInitials(firstName: string, lastName: string) {
+  const firstInitial = firstName.trim().charAt(0).toUpperCase();
+  const lastInitial = lastName.trim().charAt(0).toUpperCase();
+  return `${firstInitial}${lastInitial}`.trim();
+}
 
-const recentRecognition = [
-  {
-    initials: "SJ",
-    name: "Sarah Jenkins",
-    action: "earned the",
-    badge: "Century Club",
-    type: "badge",
-    time: "2 hours ago",
-    icon: Trophy,
-    iconText: "text-amber-500",
-  },
-  {
-    initials: "DK",
-    name: "David Kim",
-    action: "received",
-    badge: "Coffee on Us",
-    type: "reward",
-    time: "5 hours ago",
-    icon: Coffee,
-    iconText: "text-stone-500",
-  },
-  {
-    initials: "ER",
-    name: "Elena Rodriguez",
-    action: "earned the",
-    badge: "Community Pillar",
-    type: "badge",
-    time: "1 day ago",
-    icon: Shield,
-    iconText: "text-blue-500",
-  },
-];
+function buildHallOfFameEntries(volunteers: Volunteer[]): HallOfFameEntry[] {
+  const ranked = volunteers
+    .filter((volunteer) => typeof volunteer.life_hours === "number")
+    .sort((a, b) => (b.life_hours ?? 0) - (a.life_hours ?? 0))
+    .slice(0, 3)
+    .map((volunteer, index) => {
+      const rank = index + 1 as 1 | 2 | 3;
+      return {
+        id: volunteer.id,
+        rank,
+        name: `${volunteer.first_name} ${volunteer.last_name}`.trim(),
+        hours: volunteer.life_hours ?? 0,
+        initials: getInitials(volunteer.first_name, volunteer.last_name),
+        ...rankStyles[rank],
+      };
+    });
+
+  return ranked.sort((a, b) => {
+    const podiumOrder = [2, 1, 3];
+    return podiumOrder.indexOf(a.rank) - podiumOrder.indexOf(b.rank);
+  });
+}
 
 export function Recognition() {
-  const handleCreateBadge = () => {
-    console.log("Create new badge clicked");
-  };
+  const [topThree, setTopThree] = useState<HallOfFameEntry[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
-  const handleSendReward = (title: string) => {
-    console.log(`Send clicked for ${title}`);
-  };
+  useEffect(() => {
+    async function fetchVolunteers() {
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/volunteers`);
+        if (!response.ok) {
+          throw new Error("Failed to load volunteers.");
+        }
+
+        const volunteers = (await response.json()) as Volunteer[];
+        setTopThree(buildHallOfFameEntries(volunteers));
+        setError("");
+      } catch {
+        setError("Could not load volunteer rankings.");
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    fetchVolunteers();
+  }, []);
 
   return (
-    <div className="space-y-8">
-      {/* Header */}
-      <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-        <div>
-          <h1 className="mb-2 text-2xl font-semibold text-gray-900">
-            Recognition & Rewards
+    <section className="rounded-2xl border border-gray-200 bg-white p-8 shadow-sm">
+      <div className="mb-8 text-center">
+        <div className="mb-3 inline-flex items-center gap-2">
+          <Trophy className="h-6 w-6 text-amber-500" />
+          <h1 className="text-2xl font-semibold text-gray-900">
+            Volunteer Hall of Fame
           </h1>
-          <p className="text-sm text-gray-500">
-            Manage badges, milestones, and virtual treats for your volunteers.
-          </p>
         </div>
-
-        <button
-          onClick={handleCreateBadge}
-          className="inline-flex items-center gap-2 rounded-lg bg-[#2fb36f] px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-[#26955c]"
-        >
-          <Award className="h-4 w-4" />
-          Create New Badge
-        </button>
+        <p className="text-sm text-gray-500">Top contributors by lifetime hours</p>
       </div>
 
-      {/* Milestone Badges */}
-      <section className="space-y-4">
-        <div className="flex items-center gap-2">
-          <Trophy className="h-6 w-6 text-amber-500" />
-          <h2 className="text-xl font-semibold text-gray-900">
-            Milestone Badges (Regulars)
-          </h2>
+      {loading ? (
+        <div className="py-16 text-center text-sm text-gray-500">
+          Loading volunteer rankings...
         </div>
-
-        <div className="grid grid-cols-1 gap-6 xl:grid-cols-4 md:grid-cols-2">
-          {milestoneBadges.map((badge) => {
-            const Icon = badge.icon;
-
-            return (
-              <div
-                key={badge.title}
-                className={`rounded-2xl border bg-white p-6 shadow-sm ${badge.border}`}
-              >
-                <div
-                  className={`mb-6 flex h-14 w-14 items-center justify-center rounded-2xl ${badge.iconBg}`}
-                >
-                  <Icon className={`h-7 w-7 ${badge.iconText}`} />
-                </div>
-
-                <h3 className="mb-2 text-xl font-semibold text-gray-900">
-                  {badge.title}
-                </h3>
-                <p className="mb-6 text-sm text-gray-500">{badge.subtitle}</p>
-
-                <div className="flex items-center justify-between border-t border-gray-100 pt-4">
-                  <span className="text-sm font-medium text-gray-500">
-                    Earned by
-                  </span>
-                  <span className="rounded-full bg-gray-100 px-3 py-1 text-sm font-medium text-gray-700">
-                    {badge.earnedBy}
-                  </span>
-                </div>
-              </div>
-            );
-          })}
+      ) : error ? (
+        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-6 text-center text-sm text-red-600">
+          {error}
         </div>
-      </section>
-
-      {/* Hall of Fame (moved from Volunteers) */}
-      <section className="rounded-2xl border border-gray-200 bg-white p-8 shadow-sm">
-        <div className="mb-8 text-center">
-          <div className="mb-3 inline-flex items-center gap-2">
-            <Trophy className="h-6 w-6 text-amber-500" />
-            <h3 className="text-2xl font-semibold text-gray-900">Volunteer Hall of Fame</h3>
-          </div>
-          <p className="text-sm text-gray-500">Top contributors this year</p>
+      ) : topThree.length === 0 ? (
+        <div className="rounded-xl border border-gray-200 bg-gray-50 px-4 py-6 text-center text-sm text-gray-500">
+          No volunteers with recorded hours yet.
         </div>
-
-        {/* Top 3 podium */}
-        <div className="mb-10 flex flex-col items-center">
+      ) : (
+        <div className="flex flex-col items-center">
           <div className="flex items-end justify-center gap-4 md:gap-8">
             {topThree.map((person) => (
-              <div key={person.rank} className={`flex flex-col items-center text-center ${person.rank === 1 ? "md:-mt-6" : ""}`}>
+              <div
+                key={person.id}
+                className={`flex flex-col items-center text-center ${
+                  person.rank === 1 ? "md:-mt-6" : ""
+                }`}
+              >
                 <div
                   className={`mb-4 flex h-24 w-24 items-center justify-center rounded-full border-4 ${person.ring} ${person.badgeBg} text-4xl font-bold ${person.badgeText}`}
                 >
@@ -265,144 +157,32 @@ export function Recognition() {
                 </div>
 
                 <div className="mb-2 flex items-center gap-2">
-                  <div className={`flex h-9 w-9 items-center justify-center rounded-full ${person.iconBg}`}>
+                  <div
+                    className={`flex h-9 w-9 items-center justify-center rounded-full ${person.iconBg}`}
+                  >
                     <Trophy className={`h-5 w-5 ${person.iconText}`} />
                   </div>
                 </div>
 
                 <p className="text-xl font-semibold text-gray-900">{person.name}</p>
-                <p className="mb-4 text-2xl font-semibold text-emerald-600">{person.hours} hrs</p>
+                <p className="mb-4 text-2xl font-semibold text-emerald-600">
+                  {person.hours.toFixed(1)} hrs
+                </p>
 
                 <div
-                  className={`flex w-24 md:w-28 items-center justify-center rounded-t-xl border border-gray-200 ${person.podiumBg} ${person.podiumHeight}`}
+                  className={`flex w-24 items-center justify-center rounded-t-xl border border-gray-200 md:w-28 ${person.podiumBg} ${person.podiumHeight}`}
                 >
-                  <span className={`text-4xl md:text-5xl font-bold ${person.podiumText}`}>{person.rank}</span>
+                  <span
+                    className={`text-4xl font-bold md:text-5xl ${person.podiumText}`}
+                  >
+                    {person.rank}
+                  </span>
                 </div>
               </div>
             ))}
           </div>
         </div>
-
-        {/* Divider */}
-        <div className="mb-8 border-t border-gray-200" />
-
-        {/* Honorable mentions */}
-        <div>
-          <h4 className="mb-6 text-sm font-semibold uppercase tracking-wide text-gray-500">Honorable Mentions</h4>
-
-          <div className="space-y-5">
-            {honorableMentions.map((person) => (
-              <div key={person.rank} className="flex items-center justify-between rounded-xl px-2 py-2">
-                <div className="flex items-center gap-4">
-                  <div className="w-8 text-2xl font-medium text-gray-400">{person.rank}</div>
-
-                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-green-100 text-base font-semibold text-green-700">
-                    {person.initials}
-                  </div>
-
-                  <div>
-                    <p className="text-xl font-medium text-gray-900">{person.name}</p>
-                    <p className="text-sm text-gray-500">{person.role}</p>
-                  </div>
-                </div>
-
-                <div className="inline-flex items-center gap-2 text-xl font-semibold text-emerald-600">
-                  <Star className="h-5 w-5 fill-current" />
-                  {person.hours} hrs
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Welcome Treats */}
-      <section className="space-y-4">
-        <div className="flex items-center gap-2">
-          <Sun className="h-6 w-6 text-orange-500" />
-          <h2 className="text-xl font-semibold text-gray-900">
-            Welcome Treats (Newbies)
-          </h2>
-        </div>
-
-        <div className="grid grid-cols-1 gap-6 xl:grid-cols-4 md:grid-cols-2">
-          {welcomeTreats.map((treat) => {
-            const Icon = treat.icon;
-
-            return (
-              <div
-                key={treat.title}
-                className={`rounded-2xl border bg-white p-6 shadow-sm ${treat.border}`}
-              >
-                <div className="mb-6 flex items-start justify-between gap-4">
-                  <div
-                    className={`flex h-14 w-14 items-center justify-center rounded-2xl ${treat.iconBg}`}
-                  >
-                    <Icon className={`h-7 w-7 ${treat.iconText}`} />
-                  </div>
-
-                  <button
-                    onClick={() => handleSendReward(treat.title)}
-                    className="rounded-lg bg-green-50 px-3 py-1.5 text-sm font-medium text-emerald-600 transition hover:bg-green-100"
-                  >
-                    Send
-                  </button>
-                </div>
-
-                <h3 className="mb-2 text-xl font-semibold text-gray-900">
-                  {treat.title}
-                </h3>
-                <p className="text-sm text-gray-500">{treat.subtitle}</p>
-              </div>
-            );
-          })}
-        </div>
-      </section>
-
-      {/* Recent Recognition Activity */}
-      <section className="rounded-2xl border border-gray-200 bg-white p-8 shadow-sm">
-        <h2 className="mb-8 text-2xl font-semibold text-gray-900">
-          Recent Recognition Activity
-        </h2>
-
-        <div className="space-y-8">
-          {recentRecognition.map((item, index) => {
-            const Icon = item.icon;
-
-            return (
-              <div key={`${item.name}-${index}`}>
-                <div className="flex items-center justify-between gap-4">
-                  <div className="flex items-center gap-4">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-green-100 text-sm font-semibold text-emerald-700">
-                      {item.initials}
-                    </div>
-
-                    <div className="text-base text-gray-700">
-                      <span className="font-semibold text-gray-900">
-                        {item.name}
-                      </span>{" "}
-                      {item.action}{" "}
-                      <span className="font-semibold text-gray-900">
-                        {item.badge}
-                      </span>{" "}
-                      badge
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-2 text-sm text-gray-400">
-                    <Icon className={`h-4 w-4 ${item.iconText}`} />
-                    <span>{item.time}</span>
-                  </div>
-                </div>
-
-                {index !== recentRecognition.length - 1 && (
-                  <div className="mt-6 border-t border-gray-100" />
-                )}
-              </div>
-            );
-          })}
-        </div>
-      </section>
-    </div>
+      )}
+    </section>
   );
 }

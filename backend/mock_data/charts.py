@@ -13,7 +13,10 @@ def volunteers_by_last_activity_month(volunteers):
         if not last_activity:
             continue
 
-        month_key = datetime.strptime(last_activity, "%Y-%m-%d").strftime("%Y-%m")
+        try:
+            month_key = datetime.strptime(last_activity, "%Y-%m-%d").strftime("%Y-%m")
+        except ValueError:
+            continue
         month_counts[month_key] += 1
 
     return [
@@ -47,4 +50,51 @@ def volunteers_by_city(volunteers):
     return [
         {"city": city, "count": count}
         for city, count in sorted(city_counts.items())
+    ]
+
+
+AGE_GROUP_ORDER = {
+    "Under 16": 0,
+    "16-24": 1,
+    "16-24 years old": 1,
+    "25-34": 2,
+    "25-34 years old": 2,
+    "35-44": 3,
+    "35-44 years old": 3,
+    "45-54": 4,
+    "45-54 years old": 4,
+    "55-64": 5,
+    "55-64 years old": 5,
+    "55+": 6,
+    "65+": 7,
+    "65+ years old": 7,
+}
+
+
+def volunteers_by_age_group(volunteers):
+    age_group_counts = Counter()
+
+    for volunteer in volunteers:
+        age_group = volunteer.get("age_group") or "Unknown"
+        age_group_counts[age_group] += 1
+
+    return [
+        {"age_group": age_group, "count": count}
+        for age_group, count in sorted(
+            age_group_counts.items(),
+            key=lambda item: (AGE_GROUP_ORDER.get(item[0], 999), item[0]),
+        )
+    ]
+
+
+def volunteers_by_ethnicity(volunteers):
+    ethnicity_counts = Counter()
+
+    for volunteer in volunteers:
+        ethnicity = volunteer.get("ethnicity") or "Unknown"
+        ethnicity_counts[ethnicity] += 1
+
+    return [
+        {"ethnicity": ethnicity, "count": count}
+        for ethnicity, count in sorted(ethnicity_counts.items())
     ]

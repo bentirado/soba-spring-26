@@ -3,7 +3,7 @@ from typing import Optional
 
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
-from sqlalchemy import delete
+from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from database.connection import get_db
@@ -26,7 +26,7 @@ class UploadedVolunteerRow(BaseModel):
     Dietary_Restrictions: Optional[str] = None
     Hispanic_Latino_Or_Spanish: Optional[str] = None
     Life_Hours: Optional[str] = None
-    Date_Of_Last_Activity: Optional[str] = None  # mapped to joined_date
+    Date_Of_Last_Activity: Optional[str] = None  # mapped to last_activity
     Age_1: Optional[str] = None
 
 
@@ -83,6 +83,34 @@ def parse_hispanic_latino(raw_value: Optional[str]) -> Optional[str]:
 # Endpoint
 # ---------------------------------------------------------------------------
 
+@router.get("/api/volunteers")
+async def list_volunteers(db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(Volunteer))
+    volunteers = result.scalars().all()
+
+    return [
+        {
+            "id": volunteer.id,
+            "first_name": volunteer.first_name,
+            "last_name": volunteer.last_name,
+            "email": volunteer.email,
+            "city": volunteer.city,
+            "state": volunteer.state,
+            "zip": volunteer.zip,
+            "age": volunteer.age,
+            "age_group": volunteer.age_group,
+            "gender": volunteer.gender,
+            "ethnicity": volunteer.ethnicity,
+            "hispanic_latino": volunteer.hispanic_latino,
+            "dietary_restrictions": volunteer.dietary_restrictions,
+            "is_active": volunteer.is_active,
+            "joined_date": volunteer.joined_date.isoformat() if volunteer.joined_date else None,
+            "last_activity": volunteer.last_activity.isoformat() if volunteer.last_activity else None,
+            "life_hours": volunteer.life_hours,
+        }
+        for volunteer in volunteers
+    ]
+
 @router.post("/api/volunteers/upload")
 async def upload_volunteers(
     payload: VolunteerUploadRequest,
@@ -107,7 +135,7 @@ async def upload_volunteers(
                 hispanic_latino=parse_hispanic_latino(row.Hispanic_Latino_Or_Spanish),
                 dietary_restrictions=row.Dietary_Restrictions or "None",
                 life_hours=parse_uploaded_float(row.Life_Hours),
-                joined_date=parse_uploaded_date(row.Date_Of_Last_Activity),
+                last_activity=parse_uploaded_date(row.Date_Of_Last_Activity),
             )
         )
 

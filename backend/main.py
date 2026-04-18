@@ -11,6 +11,8 @@ from mock_data.charts import (
     volunteers_by_last_activity_month,
     volunteers_by_gender,
     volunteers_by_city,
+    volunteers_by_age_group,
+    volunteers_by_ethnicity,
 )
 from chatbot import router as chatbot_router
 from events import router as events_router
@@ -56,6 +58,7 @@ async def load_volunteers_from_db(db: AsyncSession):
             "hispanic_latino": volunteer.hispanic_latino,
             "life_hours": volunteer.life_hours,
             "joined_date": volunteer.joined_date.isoformat() if volunteer.joined_date else None,
+            "last_activity": volunteer.last_activity.isoformat() if volunteer.last_activity else None,
         }
         for volunteer in volunteers
     ]
@@ -141,5 +144,20 @@ async def get_volunteers_by_city(
     volunteers = await load_volunteers_from_db(db)
     return volunteers_by_city(volunteers)
 
+
+@app.get("/api/charts/volunteers-by-age-group")
+async def get_volunteers_by_age_group(
+    db: AsyncSession = Depends(get_db),
+):
+    volunteers = await load_volunteers_from_db(db)
+    return volunteers_by_age_group(volunteers)
+
+
+@app.get("/api/charts/volunteers-by-ethnicity")
+async def get_volunteers_by_ethnicity(
+    db: AsyncSession = Depends(get_db),
+):
+    volunteers = await load_volunteers_from_db(db)
+    return volunteers_by_ethnicity(volunteers)
 
 
