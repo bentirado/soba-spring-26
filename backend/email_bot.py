@@ -13,14 +13,22 @@ from database.models import Event, EventSkill, Skill, Volunteer, VolunteerSkill
 
 router = APIRouter()
 
-openai_client = openai.AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-
 GMAIL_ADDRESS = os.getenv("GMAIL_ADDRESS")
 GMAIL_APP_PASSWORD = os.getenv("GMAIL_APP_PASSWORD")
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
+def get_openai_client() -> openai.AsyncOpenAI:
+    api_key = os.getenv("OPENAI_API_KEY")
+    if not api_key:
+        raise HTTPException(
+            status_code=503,
+            detail="AI email generation is unavailable because OPENAI_API_KEY is not configured.",
+        )
+    return openai.AsyncOpenAI(api_key=api_key)
+
 
 async def get_event_with_skills(db: AsyncSession, event_id: int):
     result = await db.execute(select(Event).where(Event.id == event_id))
@@ -101,7 +109,8 @@ Guidelines:
 - Keep it under 250 words
 """
 
-    response = await openai_client.chat.completions.create(
+    client = get_openai_client()
+    response = await client.chat.completions.create(
         model="gpt-4o-mini",
         messages=[{"role": "user", "content": prompt}],
         max_tokens=400,

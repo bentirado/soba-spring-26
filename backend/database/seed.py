@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """
 Standalone seed script for the Science Museum Volunteer Management System.
 

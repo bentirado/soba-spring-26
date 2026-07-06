@@ -1,10 +1,12 @@
+from __future__ import annotations
+
 import json
 import math
 import os
 import pathlib
 import openai
 from datetime import datetime, timezone
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from pydantic import BaseModel
@@ -16,7 +18,14 @@ from database.models import Volunteer, ChatCache
 # OpenAI client
 # ---------------------------------------------------------------------------
 
-openai_client = openai.AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+def get_openai_client() -> openai.AsyncOpenAI:
+    api_key = os.getenv("OPENAI_API_KEY")
+    if not api_key:
+        raise HTTPException(
+            status_code=503,
+            detail="Chatbot is unavailable because OPENAI_API_KEY is not configured.",
+        )
+    return openai.AsyncOpenAI(api_key=api_key)
 
 # ---------------------------------------------------------------------------
 # Platform docs
@@ -99,7 +108,8 @@ def _cosine_similarity(a: list[float], b: list[float]) -> float:
 
 
 async def get_embedding(text: str) -> list[float]:
-    response = await openai_client.embeddings.create(
+    client = get_openai_client()
+    response = await client.embeddings.create(
         model="text-embedding-3-small",
         input=text,
     )
@@ -183,7 +193,8 @@ async def chat(request: ChatRequest, db: AsyncSession = Depends(get_db)):
     for msg in request.messages:
         openai_messages.append({"role": msg.role, "content": msg.content})
 
-    response = await openai_client.chat.completions.create(
+    client = get_openai_client()
+    response = await client.chat.completions.create(
         model="gpt-4o-mini",
         messages=openai_messages,
         max_tokens=500,
