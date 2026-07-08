@@ -416,22 +416,6 @@ AGENT_NAMES = [
     "RecognitionAgent",
 ]
 
-PIPELINE_NAMES = [
-    "VolgisticsSync",
-    "NASExcelIngest",
-    "NASWordIngest",
-    "ManualUploadProcessor",
-    "HoursVerificationPipeline",
-]
-
-PIPELINE_SOURCES = {
-    "VolgisticsSync":          "Volgistics",
-    "NASExcelIngest":          "NAS_Excel",
-    "NASWordIngest":           "NAS_Word",
-    "ManualUploadProcessor":   "Manual",
-    "HoursVerificationPipeline": "Manual",
-}
-
 INSIGHT_TYPES = ["Trend", "Anomaly", "Summary"]
 SEVERITIES     = ["Info", "Warning", "Critical"]
 
@@ -1163,36 +1147,6 @@ def insert_agent_recommendations(
             )
 
 
-def insert_data_pipeline_runs(cur) -> None:
-    now = datetime.now(tz=timezone.utc)
-    status_options = ["Success", "Success", "Success", "Partial", "Failed"]
-
-    for i in range(10):
-        pipeline_name = random.choice(PIPELINE_NAMES)
-        source = PIPELINE_SOURCES[pipeline_name]
-        days_ago = random.randint(0, 90)
-        started_at = now - timedelta(days=days_ago, hours=random.randint(0, 8))
-        duration_mins = random.randint(1, 60)
-        finished_at = started_at + timedelta(minutes=duration_mins)
-        status = random.choice(status_options)
-        records_ingested = random.randint(10, 300) if status in ("Success", "Partial") else 0
-        records_failed = random.randint(0, 10) if status in ("Partial", "Failed") else 0
-        error_log = fake.paragraph(nb_sentences=2) if status in ("Partial", "Failed") else None
-
-        cur.execute(
-            """
-            INSERT INTO data_pipeline_runs
-                (pipeline_name, source, started_at, finished_at, status,
-                 records_ingested, records_failed, error_log)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
-            """,
-            (
-                pipeline_name, source, started_at, finished_at, status,
-                records_ingested, records_failed, error_log,
-            ),
-        )
-
-
 # ---------------------------------------------------------------------------
 # Main seeding orchestration
 # ---------------------------------------------------------------------------
@@ -1260,9 +1214,6 @@ def seed() -> None:
 
         print("Seeding agent recommendations...")
         insert_agent_recommendations(cur, agent_run_ids, volunteer_ids)
-
-        print("Seeding data pipeline runs...")
-        insert_data_pipeline_runs(cur)
 
         conn.commit()
         print("\nDatabase seeded successfully!")
