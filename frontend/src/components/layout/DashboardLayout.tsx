@@ -1,4 +1,4 @@
-import { Outlet, Link, useLocation } from "react-router-dom";
+import { Outlet, Link, useLocation, useNavigate } from "react-router-dom";
 import {
   LayoutDashboard,
   Users,
@@ -11,9 +11,12 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 import { Chatbot } from "@/components/Chatbot";
+import { useAuth } from "@/features/auth/AuthProvider";
 
 export function DashboardLayout() {
   const location = useLocation();
+  const navigate = useNavigate();
+  const { profile, role, signOut, user } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
   const navigation = [
@@ -23,11 +26,19 @@ export function DashboardLayout() {
     { name: "Recognition", href: "/dashboard/recognition", icon: Award, disabled: false },
   ];
 
-  const handleLogout = () => {
-    console.log("Logout clicked");
-    // Optional: Add logout logic here later
-    // navigate("/signin");
+  const handleLogout = async () => {
+    await signOut();
+    navigate("/signin", { replace: true });
   };
+
+  const displayName = [profile?.first_name, profile?.last_name].filter(Boolean).join(" ");
+  const profileInitials =
+    displayName
+      .split(" ")
+      .map((part) => part[0])
+      .join("")
+      .slice(0, 2)
+      .toUpperCase() || user?.email?.slice(0, 2).toUpperCase() || "SM";
 
   return (
   <div className="flex h-screen bg-background">
@@ -112,8 +123,15 @@ export function DashboardLayout() {
           </button>
 
           <div className="flex items-center gap-4">
-            <div className="hidden text-sm text-slate-500 sm:block">
-              Dashboard Analytics
+            <div className="hidden text-right sm:block">
+              <div className="text-sm text-slate-600">
+                {displayName || user?.email || "Dashboard Analytics"}
+              </div>
+              {role && (
+                <div className="text-xs capitalize text-slate-400">
+                  {role}
+                </div>
+              )}
             </div>
 
             <button
@@ -128,7 +146,7 @@ export function DashboardLayout() {
               className="flex h-10 w-10 items-center justify-center rounded-full bg-[#2563eb] text-sm font-medium text-white transition hover:bg-blue-700"
               aria-label="Profile"
             >
-              NT
+              {profileInitials}
             </button>
           </div>
         </header>

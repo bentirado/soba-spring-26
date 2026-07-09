@@ -29,6 +29,17 @@ Adjust it in `backend/.env` if your local Postgres user or password is different
 
 `OPENAI_API_KEY`, `GMAIL_ADDRESS`, and `GMAIL_APP_PASSWORD` are optional for local dashboard testing. Without them, the backend still starts, but chatbot and AI email sending endpoints return configuration errors when used.
 
+Frontend authentication uses Supabase. Add the staging or production Supabase project values to `frontend/.env`:
+
+```env
+VITE_SUPABASE_URL=https://your-project-ref.supabase.co
+VITE_SUPABASE_ANON_KEY=your-publishable-or-anon-key
+```
+
+Use only the Supabase publishable/anon key in frontend env vars. Never put a service role or secret key in the frontend.
+
+The app expects a Supabase `public.user_profiles` table linked to `auth.users` with a `role` column. Supported application roles are `admin`, `staff`, and `viewer`. New users should default to `viewer`; promote staff/admin users from the Supabase SQL editor or dashboard during staging.
+
 ## Run Locally
 
 Install and start the backend:
