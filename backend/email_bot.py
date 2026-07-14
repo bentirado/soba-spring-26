@@ -8,6 +8,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from pydantic import BaseModel
 
+from auth import CurrentUser, require_roles
 from database.connection import get_db
 from database.models import Event, EventSkill, Skill, Volunteer, VolunteerSkill
 
@@ -136,7 +137,11 @@ def send_gmail(to_email: str, subject: str, body: str):
 # ---------------------------------------------------------------------------
 
 @router.get("/api/email/preview/{event_id}")
-async def preview_event_emails(event_id: int, db: AsyncSession = Depends(get_db)):
+async def preview_event_emails(
+    event_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: CurrentUser = Depends(require_roles("admin", "staff")),
+):
     event, required_skills = await get_event_with_skills(db, event_id)
     if not event:
         raise HTTPException(status_code=404, detail="Event not found")
@@ -178,6 +183,7 @@ async def send_event_emails(
     event_id: int,
     payload: SendRequest,
     db: AsyncSession = Depends(get_db),
+    current_user: CurrentUser = Depends(require_roles("admin", "staff")),
 ):
     if not GMAIL_ADDRESS or not GMAIL_APP_PASSWORD:
         raise HTTPException(

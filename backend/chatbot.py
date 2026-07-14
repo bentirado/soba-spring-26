@@ -11,6 +11,7 @@ from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from pydantic import BaseModel
 
+from auth import CurrentUser, get_current_user, require_roles
 from database.connection import get_db
 from database.models import Volunteer, ChatCache
 
@@ -165,7 +166,10 @@ class ChatRequest(BaseModel):
 
 
 @router.delete("/api/chat/cache")
-async def clear_chat_cache(db: AsyncSession = Depends(get_db)):
+async def clear_chat_cache(
+    db: AsyncSession = Depends(get_db),
+    current_user: CurrentUser = Depends(require_roles("admin")),
+):
     result = await db.execute(select(ChatCache))
     entries = result.scalars().all()
     for entry in entries:
@@ -175,7 +179,11 @@ async def clear_chat_cache(db: AsyncSession = Depends(get_db)):
 
 
 @router.post("/api/chat")
-async def chat(request: ChatRequest, db: AsyncSession = Depends(get_db)):
+async def chat(
+    request: ChatRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user: CurrentUser = Depends(get_current_user),
+):
     # The last message is the user's current question
     user_question = request.messages[-1].content
 

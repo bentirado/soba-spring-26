@@ -4,6 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from typing import Optional
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from auth import CurrentUser, get_current_user
 from database.connection import get_db, init_db
 from database.models import Volunteer
 from mock_data.overview import build_overview
@@ -16,7 +17,6 @@ from mock_data.charts import (
 )
 from chatbot import router as chatbot_router
 from events import router as events_router
-from apply import router as apply_router
 from email_bot import router as email_router
 from volunteers import router as volunteers_router
 
@@ -72,7 +72,6 @@ app = FastAPI(lifespan=lifespan)
 
 app.include_router(chatbot_router)
 app.include_router(events_router)
-app.include_router(apply_router)
 app.include_router(email_router)
 app.include_router(volunteers_router)
 
@@ -99,14 +98,20 @@ def health_check():
 
 # Return the dashboard overview using volunteer data from PostgreSQL.
 @app.get("/api/overview")
-async def get_dashboard_overview(db: AsyncSession = Depends(get_db)):
+async def get_dashboard_overview(
+    db: AsyncSession = Depends(get_db),
+    current_user: CurrentUser = Depends(get_current_user),
+):
     volunteers = await load_volunteers_from_db(db)
     return build_overview(volunteers)
 
 
 # Return chart data for volunteer last activity by month.
 @app.get("/api/charts/last-activity-by-month")
-async def get_last_activity_by_month(db: AsyncSession = Depends(get_db)):
+async def get_last_activity_by_month(
+    db: AsyncSession = Depends(get_db),
+    current_user: CurrentUser = Depends(get_current_user),
+):
     volunteers = await load_volunteers_from_db(db)
     return volunteers_by_last_activity_month(volunteers)
 
@@ -117,6 +122,7 @@ async def get_volunteers_by_gender(
     start: Optional[str] = None,
     end: Optional[str] = None,
     db: AsyncSession = Depends(get_db),
+    current_user: CurrentUser = Depends(get_current_user),
 ):
     volunteers = await load_volunteers_from_db(db)
 
@@ -140,6 +146,7 @@ async def get_volunteers_by_city(
     start: Optional[str] = None,
     end: Optional[str] = None,
     db: AsyncSession = Depends(get_db),
+    current_user: CurrentUser = Depends(get_current_user),
 ):
     volunteers = await load_volunteers_from_db(db)
     return volunteers_by_city(volunteers)
@@ -148,6 +155,7 @@ async def get_volunteers_by_city(
 @app.get("/api/charts/volunteers-by-age-group")
 async def get_volunteers_by_age_group(
     db: AsyncSession = Depends(get_db),
+    current_user: CurrentUser = Depends(get_current_user),
 ):
     volunteers = await load_volunteers_from_db(db)
     return volunteers_by_age_group(volunteers)
@@ -156,8 +164,7 @@ async def get_volunteers_by_age_group(
 @app.get("/api/charts/volunteers-by-ethnicity")
 async def get_volunteers_by_ethnicity(
     db: AsyncSession = Depends(get_db),
+    current_user: CurrentUser = Depends(get_current_user),
 ):
     volunteers = await load_volunteers_from_db(db)
     return volunteers_by_ethnicity(volunteers)
-
-

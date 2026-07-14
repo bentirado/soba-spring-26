@@ -1,10 +1,11 @@
 from datetime import datetime
 from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy import select, delete
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
+from auth import CurrentUser, get_current_user, require_roles
 from database.connection import get_db
 from database.models import Event, EventSkill, Skill
 
@@ -31,7 +32,7 @@ class EventCreate(BaseModel):
     start_datetime: Optional[datetime] = None
     end_datetime: Optional[datetime] = None
     max_volunteers: Optional[int] = None
-    required_skills: list[str] = []   # list of skill names
+    required_skills: list[str] = Field(default_factory=list)
 
 
 class EventResponse(BaseModel):
@@ -79,8 +80,15 @@ async def event_to_response(event: Event) -> EventResponse:
 # ---------------------------------------------------------------------------
 
 @router.get("/api/events", response_model=list[EventResponse])
-async def list_events(db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(Event).where(Event.is_cancelled == False))
+async def list_events(
+    db: AsyncSession = Depends(get_db),
+    current_user: CurrentUser = Depends(get_current_user),
+):
+    result = await db.execute(
+        select(Event)
+        .where(Event.is_cancelled == False)
+        .order_by(Event.start_datetime.asc().nullslast(), Event.id.asc())
+    )
     events = result.scalars().all()
 
     # Load skills for each event
@@ -114,9 +122,20 @@ async def list_events(db: AsyncSession = Depends(get_db)):
 
 
 @router.post("/api/events", response_model=EventResponse)
-async def create_event(payload: EventCreate, db: AsyncSession = Depends(get_db)):
+async def create_event(
+    payload: EventCreate,
+    db: AsyncSession = Depends(get_db),
+    current_user: CurrentUser = Depends(require_roles("admin", "staff")),
+):
+    if not payload.name.strip():
+        raise HTTPException(status_code=422, detail="Event name is required.")
+    if payload.start_datetime and payload.end_datetime and payload.end_datetime < payload.start_datetime:
+        raise HTTPException(status_code=422, detail="End date must be after start date.")
+    if payload.max_volunteers is not None and payload.max_volunteers < 1:
+        raise HTTPException(status_code=422, detail="Max volunteers must be at least 1.")
+
     event = Event(
-        name=payload.name,
+        name=payload.name.strip(),
         description=payload.description,
         location=payload.location,
         start_datetime=payload.start_datetime,
@@ -148,7 +167,11 @@ async def create_event(payload: EventCreate, db: AsyncSession = Depends(get_db))
 
 
 @router.delete("/api/events/{event_id}")
-async def cancel_event(event_id: int, db: AsyncSession = Depends(get_db)):
+async def cancel_event(
+    event_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: CurrentUser = Depends(require_roles("admin", "staff")),
+):
     result = await db.execute(select(Event).where(Event.id == event_id))
     event = result.scalar_one_or_none()
     if not event:
@@ -158,5 +181,7 @@ async def cancel_event(event_id: int, db: AsyncSession = Depends(get_db)):
 
 
 @router.get("/api/skills")
-async def list_skills():
+async def list_skills(
+    current_user: CurrentUser = Depends(get_current_user),
+):
     return {"skills": ALL_SKILLS}

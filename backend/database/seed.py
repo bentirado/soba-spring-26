@@ -5,6 +5,8 @@ Standalone seed script for the Science Museum Volunteer Management System.
 
 Populates the PostgreSQL database with realistic mock data.
 Uses psycopg2 (synchronous) for simplicity.
+Local/staging-only: do not run this against production unless you
+intentionally want demo data in the production database.
 
 Usage:
     cd backend

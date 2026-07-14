@@ -1,9 +1,6 @@
 import { useEffect, useState } from "react";
-import { CalendarDays, MapPin, Users, Plus, X, Trash2, Mail, CheckSquare, Square } from "lucide-react";
-
-const API_BASE_URL =
-  (import.meta.env.VITE_API_BASE_URL as string | undefined)?.replace(/\/$/, "") ??
-  "http://127.0.0.1:8000";
+import { AlertCircle, CalendarDays, Loader2, MapPin, Users, Plus, X, Trash2, Mail, CheckSquare, Square } from "lucide-react";
+import { apiFetch, requireOk } from "@/lib/api";
 
 const ALL_SKILLS = [
   "Bilingual", "Customer Service", "Dependable", "Live Performing",
@@ -62,6 +59,8 @@ export function Events() {
   const [form, setForm] = useState(emptyForm);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [formError, setFormError] = useState("");
+  const [cancelingId, setCancelingId] = useState<number | null>(null);
 
   // Preview modal state
   const [preview, setPreview] = useState<PreviewData | null>(null);
@@ -73,11 +72,17 @@ export function Events() {
 
   async function fetchEvents() {
     try {
-      const res = await fetch(`${API_BASE_URL}/api/events`);
+      const res = await apiFetch("/api/events");
+      await requireOk(res, "Could not load events.");
       const data = await res.json();
       setEvents(data);
-    } catch {
-      setError("Could not load events.");
+      setError("");
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? `Could not load events: ${err.message}`
+          : "Could not load events.",
+      );
     } finally {
       setLoading(false);
     }
@@ -95,11 +100,24 @@ export function Events() {
   }
 
   async function handleCreate() {
-    if (!form.name.trim()) return;
+    if (!form.name.trim()) {
+      setFormError("Event name is required.");
+      return;
+    }
+    if (form.start_datetime && form.end_datetime && form.end_datetime < form.start_datetime) {
+      setFormError("End date must be after start date.");
+      return;
+    }
+    if (form.max_volunteers && Number(form.max_volunteers) < 1) {
+      setFormError("Max volunteers must be at least 1.");
+      return;
+    }
+
     setSaving(true);
     setError("");
+    setFormError("");
     try {
-      const res = await fetch(`${API_BASE_URL}/api/events`, {
+      const res = await apiFetch("/api/events", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -112,20 +130,40 @@ export function Events() {
           required_skills: form.required_skills,
         }),
       });
-      if (!res.ok) throw new Error();
+      await requireOk(res, "Failed to create event.");
       setForm(emptyForm);
       setShowForm(false);
       await fetchEvents();
-    } catch {
-      setError("Failed to create event.");
+    } catch (err) {
+      setFormError(
+        err instanceof Error
+          ? `Failed to create event: ${err.message}`
+          : "Failed to create event.",
+      );
     } finally {
       setSaving(false);
     }
   }
 
   async function handleCancelEvent(eventId: number) {
-    await fetch(`${API_BASE_URL}/api/events/${eventId}`, { method: "DELETE" });
-    await fetchEvents();
+    const event = events.find((item) => item.id === eventId);
+    const confirmed = window.confirm(`Cancel ${event?.name ?? "this event"}? This will remove it from active event lists.`);
+    if (!confirmed) return;
+
+    try {
+      setCancelingId(eventId);
+      const res = await apiFetch(`/api/events/${eventId}`, { method: "DELETE" });
+      await requireOk(res, "Failed to cancel event.");
+      await fetchEvents();
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? `Failed to cancel event: ${err.message}`
+          : "Failed to cancel event.",
+      );
+    } finally {
+      setCancelingId(null);
+    }
   }
 
   async function openPreview(eventId: number) {
@@ -134,13 +172,18 @@ export function Events() {
     setSendResult(null);
     setPreview(null);
     try {
-      const res = await fetch(`${API_BASE_URL}/api/email/preview/${eventId}`);
+      const res = await apiFetch(`/api/email/preview/${eventId}`);
+      await requireOk(res, "Failed to load recipients.");
       const data: PreviewData = await res.json();
       setPreview(data);
       // Pre-select all recipients
       setSelectedIds(new Set(data.recipients.map((r) => r.id)));
-    } catch {
-      setSendResult("Failed to load recipients.");
+    } catch (err) {
+      setSendResult(
+        err instanceof Error
+          ? `Failed to load recipients: ${err.message}`
+          : "Failed to load recipients.",
+      );
     } finally {
       setPreviewLoading(false);
     }
@@ -175,15 +218,20 @@ export function Events() {
     setSending(true);
     setSendResult(null);
     try {
-      const res = await fetch(`${API_BASE_URL}/api/email/send-event-emails/${previewEventId}`, {
+      const res = await apiFetch(`/api/email/send-event-emails/${previewEventId}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ volunteer_ids: Array.from(selectedIds) }),
       });
+      await requireOk(res, "Failed to send emails.");
       const data = await res.json();
       setSendResult(`✓ ${data.message}`);
-    } catch {
-      setSendResult("Failed to send emails. Please try again.");
+    } catch (err) {
+      setSendResult(
+        err instanceof Error
+          ? `Failed to send emails: ${err.message}`
+          : "Failed to send emails. Please try again.",
+      );
     } finally {
       setSending(false);
     }
@@ -198,24 +246,46 @@ export function Events() {
           <p className="text-sm text-gray-500">Create and manage volunteer events</p>
         </div>
         <button
-          onClick={() => setShowForm(true)}
+          onClick={() => {
+            setFormError("");
+            setShowForm(true);
+          }}
           className="flex items-center gap-2 rounded-lg bg-[#1f4f99] px-4 py-2 text-sm font-medium text-white hover:bg-[#1a4280] transition"
         >
           <Plus size={16} /> Create Event
         </button>
       </div>
 
-      {error && <p className="text-sm text-red-600">{error}</p>}
+      {error && (
+        <div className="flex flex-col gap-3 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-2">
+            <AlertCircle className="h-4 w-4" />
+            <span>{error}</span>
+          </div>
+          <button
+            onClick={fetchEvents}
+            className="rounded-md border border-red-200 bg-white px-3 py-1.5 text-sm font-medium text-red-700 transition hover:bg-red-100"
+          >
+            Retry
+          </button>
+        </div>
+      )}
 
       {/* Create Event Form */}
       {showForm && (
         <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm space-y-4">
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-semibold text-gray-800">New Event</h2>
-            <button onClick={() => setShowForm(false)} className="text-gray-400 hover:text-gray-600">
+            <button onClick={() => { setShowForm(false); setFormError(""); }} className="text-gray-400 hover:text-gray-600">
               <X size={18} />
             </button>
           </div>
+
+          {formError && (
+            <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
+              {formError}
+            </div>
+          )}
 
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
@@ -298,7 +368,7 @@ export function Events() {
 
           <div className="flex justify-end gap-2">
             <button
-              onClick={() => setShowForm(false)}
+              onClick={() => { setShowForm(false); setFormError(""); }}
               className="rounded-lg border border-gray-300 px-4 py-2 text-sm text-gray-600 hover:bg-gray-50"
             >
               Cancel
@@ -316,7 +386,10 @@ export function Events() {
 
       {/* Events List */}
       {loading ? (
-        <p className="text-sm text-gray-500">Loading events...</p>
+        <div className="flex items-center rounded-lg border border-blue-100 bg-blue-50 px-4 py-3 text-sm text-blue-700">
+          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+          Loading events...
+        </div>
       ) : events.length === 0 ? (
         <div className="rounded-xl border border-dashed border-gray-300 bg-white p-12 text-center">
           <CalendarDays size={40} className="mx-auto mb-3 text-gray-300" />
@@ -330,10 +403,11 @@ export function Events() {
                 <h3 className="font-semibold text-gray-900">{event.name}</h3>
                 <button
                   onClick={() => handleCancelEvent(event.id)}
-                  className="text-gray-300 hover:text-red-500 transition"
+                  disabled={cancelingId === event.id}
+                  className="text-gray-300 hover:text-red-500 disabled:cursor-not-allowed disabled:opacity-50 transition"
                   title="Cancel event"
                 >
-                  <Trash2 size={15} />
+                  {cancelingId === event.id ? <Loader2 size={15} className="animate-spin" /> : <Trash2 size={15} />}
                 </button>
               </div>
 
@@ -384,7 +458,7 @@ export function Events() {
       )}
 
       {/* Preview Modal */}
-      {(previewLoading || preview) && (
+      {previewEventId !== null && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
           <div className="relative w-full max-w-2xl max-h-[85vh] overflow-hidden rounded-2xl bg-white shadow-2xl flex flex-col">
 
@@ -414,7 +488,14 @@ export function Events() {
             {/* Modal Body */}
             <div className="flex-1 overflow-y-auto px-6 py-4">
               {previewLoading ? (
-                <p className="text-sm text-gray-500">Loading volunteers...</p>
+                <div className="flex items-center rounded-lg border border-blue-100 bg-blue-50 px-4 py-3 text-sm text-blue-700">
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Loading volunteers...
+                </div>
+              ) : !preview && sendResult ? (
+                <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
+                  {sendResult}
+                </div>
               ) : preview && preview.recipients.length === 0 ? (
                 <p className="text-sm text-gray-500">No active volunteers found.</p>
               ) : preview ? (() => {
@@ -490,14 +571,15 @@ export function Events() {
             </div>
 
             {/* Modal Footer */}
-            {preview && (
-              <div className="border-t border-gray-100 px-6 py-4 space-y-3">
-                {sendResult && (
+            <div className="border-t border-gray-100 px-6 py-4 space-y-3">
+              {preview && (
+                <>
+                  {sendResult && (
                   <p className={`text-sm ${sendResult.startsWith("✓") ? "text-green-600" : "text-red-600"}`}>
                     {sendResult}
                   </p>
-                )}
-                <div className="flex items-center justify-between gap-3">
+                  )}
+                  <div className="flex items-center justify-between gap-3">
                   <div className="flex gap-2 flex-wrap">
                     <button
                       onClick={selectAll}
@@ -540,9 +622,20 @@ export function Events() {
                       {sending ? "Sending..." : `Send to ${selectedIds.size} volunteer(s)`}
                     </button>
                   </div>
+                  </div>
+                </>
+              )}
+              {!preview && (
+                <div className="flex justify-end">
+                  <button
+                    onClick={closePreview}
+                    className="rounded-lg border border-gray-300 px-4 py-2 text-sm text-gray-600 hover:bg-gray-50"
+                  >
+                    Close
+                  </button>
                 </div>
-              </div>
-            )}
+              )}
+            </div>
           </div>
         </div>
       )}

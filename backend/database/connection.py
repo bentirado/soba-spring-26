@@ -90,9 +90,13 @@ async def get_db() -> AsyncGenerator[AsyncSession, None]:
 
 async def init_db() -> None:
     """
-    Create all tables defined in the ORM models if they do not already exist.
-    Intended to be called once at application startup, e.g. from a lifespan
-    context manager in main.py.
+    Optionally create missing tables for local development.
+
+    Production/staging should set AUTO_CREATE_TABLES=false and run Alembic
+    migrations instead, so schema changes are explicit and repeatable.
     """
+    if os.getenv("AUTO_CREATE_TABLES", "true").lower() not in {"1", "true", "yes"}:
+        return
+
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)

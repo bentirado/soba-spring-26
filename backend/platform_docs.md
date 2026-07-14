@@ -2,23 +2,24 @@
 <!-- Keep this file updated as new pages and features are built. -->
 <!-- The AI chatbot reads this file on every request. -->
 
+## Audience And Access
+- This is an internal client-facing dashboard for Science Museum Oklahoma staff.
+- It is not a public volunteer/customer portal.
+- Users must sign in before accessing dashboard data and management tools.
+
 ## Navigation Sidebar (left side)
 - Overview — main dashboard with key metrics and charts
 - Volunteers — volunteer directory, demographics, and hall of fame
-- Recognition — badges, milestones, and reward management
+- Recognition — database-backed volunteer rankings and hour milestones
 - Events — create and manage volunteer events, send email invitations
-- Exhibitions — coming soon (disabled, not accessible)
-- Revenue — financial analytics and ticket sales
 
 ## Pages & Features
 
 ### Overview Page ("/")
 - 4 stat cards at the top: Active Volunteers, Hours Logged, New Volunteers, Retention Rate (values come live from the database)
-- Volunteer Engagement Trends chart: line chart comparing current year vs previous year (12 months)
-- Weekly Activity Analysis chart: selectable metric (Volunteers / Hours / Participation %) and chart type (Bar / Line / Area)
-- Top Exhibitions chart: horizontal bar chart of most visited exhibitions
-- Visitor Demographics chart: donut chart (Children 35%, Teens 18%, Adults 38%, Seniors 9%)
-- Insight cards: Most Active Day, Avg Hours per Volunteer, Growth This Year
+- Volunteer activity charts summarize database-backed volunteer activity by month and city
+- Empty, loading, and error states are shown when database records are unavailable
+- Insight cards summarize volunteer activity and engagement
 - Date range filter (top right): Last 30 Days / This Quarter / This Year / All Time
 - Generate Report button (top right)
 - Data Actions dropdown (top right): "Upload Data" (accepts .csv files) and "Export Report"
@@ -33,18 +34,11 @@
 - Export Data button (top right) — downloads volunteer information
 
 ### Recognition Page ("/recognition")
-- Milestone Badges section (for regular volunteers): Century Club (100+ hrs), One Year Strong (1 year), Community Pillar (50+ events), Super Mentor (trained 5+ newbies)
-- Welcome Treats section (for new volunteers): First Shift, Fast Starter, Coffee on Us ($5 gift card), Welcome Swag (T-shirt)
-- Each treat card has a "Send" button to send the reward to eligible volunteers
-- Recent Recognition Activity feed: timeline showing recent badge/reward activity with timestamps
-- Create New Badge button (top right, green)
-
-### Revenue Page ("/revenue")
-- 4 stat cards: Monthly Revenue, Avg Transaction, Gift Shop Sales, Revenue Growth
-- Revenue Trend by Source chart: stacked area chart (Admissions, Memberships, Gift Shop)
-- Revenue Breakdown chart: pie chart by category
-- Daily Revenue chart: bar chart by day of week
-- Ticket Sales Analysis table: ticket types with tickets sold, revenue, and avg price
+- Pulls volunteer records from the database through the protected volunteers API
+- Shows total recognized hours, active volunteers with recorded hours, and top contributor
+- Hall of Fame podium ranks the top 3 volunteers by lifetime hours
+- Milestone cards count volunteers over hour thresholds such as 100+, 50+, and 10+ lifetime hours
+- Top Contributors table shows the first ten ranked volunteer records
 
 ### Events Page ("/events")
 - Create and manage volunteer events for Science Museum Oklahoma
@@ -62,15 +56,10 @@
   - Emails are personalized per volunteer using AI (GPT) and sent via Gmail SMTP
   - Each email mentions the volunteer's matching skills and lists other upcoming events
 
-### Exhibitions Page — COMING SOON (disabled, not accessible)
-
-### Volunteer Application Page ("/apply") — PUBLIC (no login required)
-- Public-facing form for new volunteers to apply to join Science Museum Oklahoma
-- Accessible without logging in — share this link with prospective volunteers
-- Sections: Personal Info (name, address, phone, email), Availability (days/times), Demographics (age, gender, ethnicity), Skills, Areas of Interest, Message Preferences, and Agreement
-- Submitted applications are saved to the database with status "pending review" (is_active = false)
-- Staff review applications and activate volunteers manually in the system
-- Shows a success confirmation screen after submission
+## Out Of V1 Scope
+- Revenue analytics are not part of the current client-facing launch scope.
+- Exhibitions management is not part of the current client-facing launch scope.
+- Public volunteer/customer application flows have been removed from the production app.
 
 ## Chatbot (BINJOW)
 - The floating chat button is in the bottom-right corner of every page

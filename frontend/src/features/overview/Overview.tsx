@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ChangeEvent } from "react";
+import { useEffect, useRef, useState, type ChangeEvent, type ReactNode } from "react";
 import LastActivityChart from "@/components/LastActivityChart";
 import DashboardStatCard from "@/components/StatCard";
 import VolunteersByCityBarChart from "@/components/VolunteersByCityBarChart";
@@ -6,7 +6,8 @@ import VolunteersByGenderPieChart from "@/components/VolunteersByGenderPieChart"
 import VolunteerBreakdownChart from "@/components/VolunteerBreakdownChart";
 import * as XLSX from "xlsx";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { FileText, ChevronDown, Users, Clock3, Cake, MapPin, DollarSign } from "lucide-react";
+import { FileText, ChevronDown, Users, Clock3, Cake, MapPin, DollarSign, AlertCircle, Loader2 } from "lucide-react";
+import { apiFetch, requireOk } from "@/lib/api";
 
 const rangeOptions = ["Last 30 Days", "This Quarter", "This Year", "All Time"];
 type SpreadsheetRow = Record<string, unknown>;
@@ -60,8 +61,49 @@ type EthnicityBreakdownPoint = {
   count: number;
 };
 
+type ChartPanelProps = {
+  title: string;
+  description: string;
+  loading: boolean;
+  isEmpty: boolean;
+  emptyMessage: string;
+  controls?: ReactNode;
+  children: ReactNode;
+};
+
+function ChartPanel({
+  title,
+  description,
+  loading,
+  isEmpty,
+  emptyMessage,
+  controls,
+  children,
+}: ChartPanelProps) {
+  return (
+    <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+      <h2 className="text-xl font-semibold text-slate-900">{title}</h2>
+      <p className="mt-1 text-sm text-slate-500">{description}</p>
+
+      {controls}
+
+      {loading ? (
+        <div className="mt-6 flex h-72 items-center justify-center rounded-lg border border-dashed border-slate-200 bg-slate-50 text-sm text-slate-500">
+          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+          Loading chart data...
+        </div>
+      ) : isEmpty ? (
+        <div className="mt-6 flex h-72 items-center justify-center rounded-lg border border-dashed border-slate-200 bg-slate-50 px-4 text-center text-sm text-slate-500">
+          {emptyMessage}
+        </div>
+      ) : (
+        children
+      )}
+    </div>
+  );
+}
+
 export function Overview() {
-  const apiBaseUrl = import.meta.env.VITE_API_BASE_URL?.replace(/\/$/, "") || "http://127.0.0.1:8000";
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const dataActionsRef = useRef<HTMLDivElement | null>(null);
   const rangeDropdownRef = useRef<HTMLDivElement | null>(null);
@@ -93,6 +135,10 @@ export function Overview() {
   const [ageGroupChartType, setAgeGroupChartType] = useState<"pie" | "bar" | "horizontal">("bar");
   const [ethnicityChartType, setEthnicityChartType] = useState<"pie" | "bar" | "horizontal">("horizontal");
   const [dashboardRefreshToken, setDashboardRefreshToken] = useState(0);
+
+  const refreshDashboard = () => {
+    setDashboardRefreshToken((currentValue) => currentValue + 1);
+  };
 
   const handleUploadClick = () => {
     fileInputRef.current?.click();
@@ -164,7 +210,7 @@ export function Overview() {
         Age_1: String(row["Age_1"] ?? row["Age.1"] ?? ""),
       }));
 
-      const response = await fetch(`${apiBaseUrl}/api/volunteers/upload`, {
+      const response = await apiFetch("/api/volunteers/upload", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -174,15 +220,13 @@ export function Overview() {
         }),
       });
 
-      if (!response.ok) {
-        throw new Error("Failed to upload volunteer data.");
-      }
+      await requireOk(response, "Failed to upload volunteer data.");
 
       const result = await response.json();
       console.log("Upload result:", result);
 
       resetPendingUpload();
-      setDashboardRefreshToken((currentValue) => currentValue + 1);
+      refreshDashboard();
     } catch (error) {
       console.error("Volunteer upload failed:", error);
       setUploadErrorMessage("Upload failed. Please check the file and try again.");
@@ -236,69 +280,61 @@ export function Overview() {
         setLoading(true);
         setError("");
 
-        const overviewResponse = await fetch(`${apiBaseUrl}/api/overview`);
+        const overviewResponse = await apiFetch("/api/overview");
 
-        if (!overviewResponse.ok) {
-          throw new Error("Failed to fetch overview data");
-        }
+        await requireOk(overviewResponse, "Failed to fetch overview data.");
 
         const overviewJson: OverviewData = await overviewResponse.json();
         setOverview(overviewJson);
 
-        const lineChartResponse = await fetch(`${apiBaseUrl}/api/charts/last-activity-by-month`);
+        const lineChartResponse = await apiFetch("/api/charts/last-activity-by-month");
 
-        if (!lineChartResponse.ok) {
-          throw new Error("Failed to fetch line chart data");
-        }
+        await requireOk(lineChartResponse, "Failed to fetch line chart data.");
 
         const lineChartData: LastActivityPoint[] = await lineChartResponse.json();
         setLastActivityData(lineChartData);
 
-        const genderChartResponse = await fetch(`${apiBaseUrl}/api/charts/volunteers-by-gender?start=${genderStartMonth}&end=${genderEndMonth}`);
+        const genderChartResponse = await apiFetch(`/api/charts/volunteers-by-gender?start=${genderStartMonth}&end=${genderEndMonth}`);
 
-        if (!genderChartResponse.ok) {
-          throw new Error("Failed to fetch gender chart data");
-        }
+        await requireOk(genderChartResponse, "Failed to fetch gender chart data.");
 
         const genderChartData: GenderBreakdownPoint[] = await genderChartResponse.json();
         setGenderData(genderChartData);
 
-        const cityChartResponse = await fetch(`${apiBaseUrl}/api/charts/volunteers-by-city`);
+        const cityChartResponse = await apiFetch("/api/charts/volunteers-by-city");
 
-        if (!cityChartResponse.ok) {
-          throw new Error("Failed to fetch city chart data");
-        }
+        await requireOk(cityChartResponse, "Failed to fetch city chart data.");
 
         const cityChartData: CityBreakdownPoint[] = await cityChartResponse.json();
         setCityData(cityChartData);
 
-        const ageGroupChartResponse = await fetch(`${apiBaseUrl}/api/charts/volunteers-by-age-group`);
+        const ageGroupChartResponse = await apiFetch("/api/charts/volunteers-by-age-group");
 
-        if (!ageGroupChartResponse.ok) {
-          throw new Error("Failed to fetch age group chart data");
-        }
+        await requireOk(ageGroupChartResponse, "Failed to fetch age group chart data.");
 
         const ageGroupChartData: AgeGroupBreakdownPoint[] = await ageGroupChartResponse.json();
         setAgeGroupData(ageGroupChartData);
 
-        const ethnicityChartResponse = await fetch(`${apiBaseUrl}/api/charts/volunteers-by-ethnicity`);
+        const ethnicityChartResponse = await apiFetch("/api/charts/volunteers-by-ethnicity");
 
-        if (!ethnicityChartResponse.ok) {
-          throw new Error("Failed to fetch ethnicity chart data");
-        }
+        await requireOk(ethnicityChartResponse, "Failed to fetch ethnicity chart data.");
 
         const ethnicityChartData: EthnicityBreakdownPoint[] = await ethnicityChartResponse.json();
         setEthnicityData(ethnicityChartData);
       } catch (err) {
         console.error("Dashboard fetch error:", err);
-        setError("Could not load dashboard data.");
+        setError(
+          err instanceof Error
+            ? `Could not load dashboard data: ${err.message}`
+            : "Could not load dashboard data.",
+        );
       } finally {
         setLoading(false);
       }
     }
 
     fetchDashboardData();
-  }, [apiBaseUrl, genderStartMonth, genderEndMonth, dashboardRefreshToken]);
+  }, [genderStartMonth, genderEndMonth, dashboardRefreshToken]);
 
   return (
     <div className="space-y-6">
@@ -447,8 +483,32 @@ export function Overview() {
 
       {/* API-backed dashboard content */}
       <div className="space-y-6">
-        {loading && <p className="text-sm text-slate-600">Loading dashboard...</p>}
-        {error && <p className="text-sm text-red-600">{error}</p>}
+        {loading && (
+          <div className="flex items-center rounded-lg border border-blue-100 bg-blue-50 px-4 py-3 text-sm text-blue-700">
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            Loading dashboard data...
+          </div>
+        )}
+        {error && (
+          <div className="flex flex-col gap-3 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-center gap-2">
+              <AlertCircle className="h-4 w-4" />
+              <span>{error}</span>
+            </div>
+            <button
+              onClick={refreshDashboard}
+              className="rounded-md border border-red-200 bg-white px-3 py-1.5 text-sm font-medium text-red-700 transition hover:bg-red-100"
+            >
+              Retry
+            </button>
+          </div>
+        )}
+
+        {!loading && !error && overview?.total_volunteers === 0 && (
+          <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+            No volunteer records are available yet. Add volunteers from the Volunteers page or upload a dataset to populate dashboard metrics.
+          </div>
+        )}
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
           <DashboardStatCard title="Total Volunteers" value={overview?.total_volunteers ?? "--"} icon={Users} iconColor="bg-blue-600" />
@@ -459,11 +519,14 @@ export function Overview() {
         </div>
 
         <div className="grid grid-cols-1 gap-6">
-          <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-            <h2 className="text-xl font-semibold text-slate-900">Last Activity by Month</h2>
-            <p className="mt-1 text-sm text-slate-500">Number of volunteers grouped by their most recent recorded activity month.</p>
-
-            <div className="mt-4 flex flex-col gap-4 md:flex-row md:items-end">
+          <ChartPanel
+            title="Last Activity by Month"
+            description="Number of volunteers grouped by their most recent recorded activity month."
+            loading={loading}
+            isEmpty={filteredLastActivityData.length === 0}
+            emptyMessage="No last activity dates are available for the current filters."
+            controls={(
+              <div className="mt-4 flex flex-col gap-4 md:flex-row md:items-end">
               <div className="flex flex-col">
                 <label className="mb-1 text-sm font-medium text-slate-700">Chart Type</label>
                 <select
@@ -496,16 +559,21 @@ export function Overview() {
                   className="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm"
                 />
               </div>
-            </div>
+              </div>
+            )}
+          >
 
             <LastActivityChart data={filteredLastActivityData} chartType={lastActivityChartType} />
-          </div>
+          </ChartPanel>
 
-          <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-            <h2 className="text-xl font-semibold text-slate-900">Volunteers by City</h2>
-            <p className="mt-1 text-sm text-slate-500">Number of volunteers grouped by city from the mock dataset.</p>
-
-            <div className="mt-4 flex flex-col">
+          <ChartPanel
+            title="Volunteers by City"
+            description="Number of volunteers grouped by city from the volunteers table."
+            loading={loading}
+            isEmpty={cityData.length === 0}
+            emptyMessage="No city data is available yet."
+            controls={(
+              <div className="mt-4 flex flex-col">
               <label className="mb-1 text-sm font-medium text-slate-700">Chart Type</label>
               <select
                 value={cityChartType}
@@ -516,16 +584,21 @@ export function Overview() {
                 <option value="horizontal">Horizontal Bar Chart</option>
                 <option value="pie">Pie Chart</option>
               </select>
-            </div>
+              </div>
+            )}
+          >
 
             <VolunteersByCityBarChart data={cityData} chartType={cityChartType} />
-          </div>
+          </ChartPanel>
 
-          <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-            <h2 className="text-xl font-semibold text-slate-900">Volunteers by Gender</h2>
-            <p className="mt-1 text-sm text-slate-500">Gender breakdown of volunteers from the volunteers table.</p>
-
-            <div className="mt-4 flex flex-col gap-4 md:flex-row md:items-end">
+          <ChartPanel
+            title="Volunteers by Gender"
+            description="Gender breakdown of volunteers from the volunteers table."
+            loading={loading}
+            isEmpty={filteredGenderData.length === 0}
+            emptyMessage="No gender data is available for the current filters."
+            controls={(
+              <div className="mt-4 flex flex-col gap-4 md:flex-row md:items-end">
               <div className="flex flex-col">
                 <label className="mb-1 text-sm font-medium text-slate-700">Chart Type</label>
                 <select
@@ -558,16 +631,21 @@ export function Overview() {
                   className="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm"
                 />
               </div>
-            </div>
+              </div>
+            )}
+          >
 
             <VolunteersByGenderPieChart data={filteredGenderData} chartType={genderChartType} />
-          </div>
+          </ChartPanel>
 
-          <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-            <h2 className="text-xl font-semibold text-slate-900">Volunteers by Age Group</h2>
-            <p className="mt-1 text-sm text-slate-500">Age group breakdown of volunteers from the volunteers table.</p>
-
-            <div className="mt-4 flex flex-col">
+          <ChartPanel
+            title="Volunteers by Age Group"
+            description="Age group breakdown of volunteers from the volunteers table."
+            loading={loading}
+            isEmpty={ageGroupChartData.length === 0}
+            emptyMessage="No age group data is available yet."
+            controls={(
+              <div className="mt-4 flex flex-col">
               <label className="mb-1 text-sm font-medium text-slate-700">Chart Type</label>
               <select
                 value={ageGroupChartType}
@@ -578,20 +656,25 @@ export function Overview() {
                 <option value="horizontal">Horizontal Bar Chart</option>
                 <option value="pie">Pie Chart</option>
               </select>
-            </div>
+              </div>
+            )}
+          >
 
             <VolunteerBreakdownChart
               data={ageGroupChartData}
               chartType={ageGroupChartType}
               sortMode="preserve"
             />
-          </div>
+          </ChartPanel>
 
-          <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-            <h2 className="text-xl font-semibold text-slate-900">Volunteers by Ethnicity</h2>
-            <p className="mt-1 text-sm text-slate-500">Ethnicity breakdown of volunteers from the volunteers table.</p>
-
-            <div className="mt-4 flex flex-col">
+          <ChartPanel
+            title="Volunteers by Ethnicity"
+            description="Ethnicity breakdown of volunteers from the volunteers table."
+            loading={loading}
+            isEmpty={ethnicityChartData.length === 0}
+            emptyMessage="No ethnicity data is available yet."
+            controls={(
+              <div className="mt-4 flex flex-col">
               <label className="mb-1 text-sm font-medium text-slate-700">Chart Type</label>
               <select
                 value={ethnicityChartType}
@@ -602,10 +685,12 @@ export function Overview() {
                 <option value="bar">Bar / Column Chart</option>
                 <option value="pie">Pie Chart</option>
               </select>
-            </div>
+              </div>
+            )}
+          >
 
             <VolunteerBreakdownChart data={ethnicityChartData} chartType={ethnicityChartType} />
-          </div>
+          </ChartPanel>
         </div>
       </div>
 
