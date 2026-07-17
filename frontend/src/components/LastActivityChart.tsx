@@ -17,9 +17,11 @@ type LastActivityChartProps = {
 
 // Reusable chart component for volunteer last-activity data.
 export default function LastActivityChart({ data, chartType }: LastActivityChartProps) {
-  // Debug: check the exact chart data being received.
-  console.log("LastActivityChart data length:", data.length);
-  console.log("LastActivityChart first item:", data[0]);
+  const tooltipFormatter = (value: number) => [
+    `${value.toLocaleString()} volunteer${value === 1 ? "" : "s"} last active`,
+    "Volunteers",
+  ];
+
   return (
     <div className="mt-6 h-80">
       {/* Responsive container makes the chart resize nicely */}
@@ -29,7 +31,7 @@ export default function LastActivityChart({ data, chartType }: LastActivityChart
             <CartesianGrid strokeDasharray="3 3" />
             <XAxis dataKey="month" />
             <YAxis allowDecimals={false} />
-            <Tooltip />
+            <Tooltip formatter={tooltipFormatter} />
             <Line type="monotone" dataKey="count" stroke="#2563eb" strokeWidth={3} />
           </LineChart>
         ) : chartType === "bar" ? (
@@ -37,7 +39,7 @@ export default function LastActivityChart({ data, chartType }: LastActivityChart
             <CartesianGrid strokeDasharray="3 3" />
             <XAxis dataKey="month" />
             <YAxis allowDecimals={false} />
-            <Tooltip />
+            <Tooltip formatter={tooltipFormatter} />
             <Bar dataKey="count" fill="#2563eb" radius={[6, 6, 0, 0]} />
           </BarChart>
         ) : (
@@ -45,7 +47,7 @@ export default function LastActivityChart({ data, chartType }: LastActivityChart
             <CartesianGrid strokeDasharray="3 3" />
             <XAxis dataKey="month" />
             <YAxis allowDecimals={false} />
-            <Tooltip />
+            <Tooltip formatter={tooltipFormatter} />
             <Area type="monotone" dataKey="count" stroke="#2563eb" fill="#93c5fd" strokeWidth={2} />
           </AreaChart>
         )}

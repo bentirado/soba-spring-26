@@ -33,6 +33,7 @@ class UploadedVolunteerRow(BaseModel):
 
 class VolunteerUploadRequest(BaseModel):
     rows: list[UploadedVolunteerRow]
+    file_name: Optional[str] = None
 
 
 class VolunteerWriteRequest(BaseModel):
@@ -196,23 +197,24 @@ async def update_volunteer(
     await db.flush()
     return volunteer_to_dict(volunteer)
 
+
 @router.post("/api/volunteers/upload")
 async def upload_volunteers(
     payload: VolunteerUploadRequest,
     db: AsyncSession = Depends(get_db),
-    current_user: CurrentUser = Depends(require_roles("admin")),
+    current_user: CurrentUser = Depends(require_roles("admin", "staff")),
 ):
-    """Replace the volunteers table with rows from the uploaded spreadsheet."""
+    """Replace the active analytics dataset with rows from the uploaded spreadsheet."""
     await db.execute(delete(Volunteer))
 
     volunteers_to_insert = []
     for index, row in enumerate(payload.rows, start=1):
         volunteers_to_insert.append(
             Volunteer(
-                first_name="Person",
-                last_name=str(index),
+                first_name="Spreadsheet",
+                last_name=f"Row {index}",
                 city=row.City or None,
-                state=(row.State or "OK"),
+                state=(row.State or "OK").strip().upper(),
                 zip=row.Zip or None,
                 age=parse_uploaded_int(row.Age),
                 age_group=row.Age_1 or None,
@@ -222,12 +224,14 @@ async def upload_volunteers(
                 dietary_restrictions=row.Dietary_Restrictions or "None",
                 life_hours=parse_uploaded_float(row.Life_Hours),
                 last_activity=parse_uploaded_date(row.Date_Of_Last_Activity),
+                is_active=True,
             )
         )
 
     db.add_all(volunteers_to_insert)
-    await db.commit()
+    await db.flush()
     return {
-        "message": "Volunteer data uploaded successfully.",
+        "message": "Analytics dataset replaced successfully.",
+        "file_name": payload.file_name,
         "rows_inserted": len(volunteers_to_insert),
     }

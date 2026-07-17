@@ -559,4 +559,3 @@ class AgentRecommendation(Base):
             f"<AgentRecommendation id={self.id} agent_run_id={self.agent_run_id} "
             f"type='{self.recommendation_type}' priority='{self.priority}' status='{self.status}'>"
         )
-

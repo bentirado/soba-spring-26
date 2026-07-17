@@ -22,7 +22,6 @@
 - Insight cards summarize volunteer activity and engagement
 - Date range filter (top right): Last 30 Days / This Quarter / This Year / All Time
 - Generate Report button (top right)
-- Data Actions dropdown (top right): "Upload Data" (accepts .csv files) and "Export Report"
 
 ### Volunteers Page ("/volunteers")
 - 4 stat cards: Total Volunteers, Hours Logged, Active Events, Community Impact
@@ -32,6 +31,9 @@
 - Hall of Fame section: top 3 volunteers on a podium ranked by total hours
 - Honorable Mentions: ranks 4–6
 - Export Data button (top right) — downloads volunteer information
+- Replace Dataset button uploads an Excel/CSV spreadsheet and replaces the active analytics dataset
+- Dashboard, volunteer, and recognition analytics reflect the latest uploaded spreadsheet
+- Uploaded spreadsheet rows are treated as analytics records, not manually maintained volunteer profiles
 
 ### Recognition Page ("/recognition")
 - Pulls volunteer records from the database through the protected volunteers API

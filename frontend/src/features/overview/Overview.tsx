@@ -1,33 +1,25 @@
-import { useEffect, useRef, useState, type ChangeEvent, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import LastActivityChart from "@/components/LastActivityChart";
 import DashboardStatCard from "@/components/StatCard";
 import VolunteersByCityBarChart from "@/components/VolunteersByCityBarChart";
 import VolunteersByGenderPieChart from "@/components/VolunteersByGenderPieChart";
 import VolunteerBreakdownChart from "@/components/VolunteerBreakdownChart";
-import * as XLSX from "xlsx";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { FileText, ChevronDown, Users, Clock3, Cake, MapPin, DollarSign, AlertCircle, Loader2 } from "lucide-react";
+import { FileText, ChevronDown, Users, Clock3, Cake, MapPin, DollarSign, AlertCircle, Loader2, HelpCircle, Sparkles } from "lucide-react";
 import { apiFetch, requireOk } from "@/lib/api";
 
-const rangeOptions = ["Last 30 Days", "This Quarter", "This Year", "All Time"];
-type SpreadsheetRow = Record<string, unknown>;
-
-const parseSpreadsheetFile = async (file: File): Promise<SpreadsheetRow[]> => {
-  const buffer = await file.arrayBuffer();
-  const workbook = XLSX.read(buffer, { type: "array" });
-  const firstSheetName = workbook.SheetNames[0];
-
-  if (!firstSheetName) {
-    return [];
-  }
-
-  const worksheet = workbook.Sheets[firstSheetName];
-
-  return XLSX.utils.sheet_to_json<SpreadsheetRow>(worksheet, {
-    defval: "",
-    raw: false,
-  });
+const rangeOptions = ["All Time", "Last 3 Years", "This Year", "This Quarter"];
+const rangeParamByLabel: Record<string, string> = {
+  "All Time": "all_time",
+  "Last 3 Years": "last_3_years",
+  "This Year": "this_year",
+  "This Quarter": "this_quarter",
 };
+const defaultVolunteerHourlyValue = 30.63;
+const lastActivityChartStorageKey = "lastActivityChartType";
+
+type LastActivityChartType = "line" | "bar" | "area";
+
+const validLastActivityChartTypes: LastActivityChartType[] = ["bar", "line", "area"];
 
 type OverviewData = {
   total_volunteers: number;
@@ -104,19 +96,11 @@ function ChartPanel({
 }
 
 export function Overview() {
-  const fileInputRef = useRef<HTMLInputElement | null>(null);
-  const dataActionsRef = useRef<HTMLDivElement | null>(null);
   const rangeDropdownRef = useRef<HTMLDivElement | null>(null);
 
-  const [selectedFileName, setSelectedFileName] = useState("");
-  const [pendingUploadRows, setPendingUploadRows] = useState<SpreadsheetRow[]>([]);
-  const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false);
-  const [uploadErrorMessage, setUploadErrorMessage] = useState("");
-  const [isUploading, setIsUploading] = useState(false);
-  const [dataActionsOpen, setDataActionsOpen] = useState(false);
   const [rangeOpen, setRangeOpen] = useState(false);
 
-  const [selectedRange, setSelectedRange] = useState("Last 30 Days");
+  const [selectedRange, setSelectedRange] = useState("All Time");
   const [overview, setOverview] = useState<OverviewData | null>(null);
   const [lastActivityData, setLastActivityData] = useState<LastActivityPoint[]>([]);
   const [genderData, setGenderData] = useState<GenderBreakdownPoint[]>([]);
@@ -125,9 +109,10 @@ export function Overview() {
   const [ethnicityData, setEthnicityData] = useState<EthnicityBreakdownPoint[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [lastActivityChartType, setLastActivityChartType] = useState<"line" | "bar" | "area">("line");
-  const [startMonth, setStartMonth] = useState("");
-  const [endMonth, setEndMonth] = useState("");
+  const [lastActivityChartType, setLastActivityChartType] = useState<LastActivityChartType>(() => {
+    const savedType = window.localStorage.getItem(lastActivityChartStorageKey) as LastActivityChartType | null;
+    return savedType && validLastActivityChartTypes.includes(savedType) ? savedType : "line";
+  });
   const [genderChartType, setGenderChartType] = useState<"pie" | "bar" | "horizontal">("pie");
   const [genderStartMonth, setGenderStartMonth] = useState("");
   const [genderEndMonth, setGenderEndMonth] = useState("");
@@ -135,117 +120,28 @@ export function Overview() {
   const [ageGroupChartType, setAgeGroupChartType] = useState<"pie" | "bar" | "horizontal">("bar");
   const [ethnicityChartType, setEthnicityChartType] = useState<"pie" | "bar" | "horizontal">("horizontal");
   const [dashboardRefreshToken, setDashboardRefreshToken] = useState(0);
+  const [valueModalOpen, setValueModalOpen] = useState(false);
+  const [lastActivityInsightLoading, setLastActivityInsightLoading] = useState(false);
+  const [generatedLastActivityInsight, setGeneratedLastActivityInsight] = useState("");
+  const [volunteerHourlyValue, setVolunteerHourlyValue] = useState(() => {
+    const savedValue = window.localStorage.getItem("volunteerHourlyValue");
+    const parsedValue = savedValue ? Number(savedValue) : defaultVolunteerHourlyValue;
+    return Number.isFinite(parsedValue) && parsedValue > 0 ? parsedValue : defaultVolunteerHourlyValue;
+  });
+  const [hourlyValueInput, setHourlyValueInput] = useState(volunteerHourlyValue.toString());
 
   const refreshDashboard = () => {
     setDashboardRefreshToken((currentValue) => currentValue + 1);
-  };
-
-  const handleUploadClick = () => {
-    fileInputRef.current?.click();
-    setDataActionsOpen(false);
-  };
-
-  const resetPendingUpload = () => {
-    setSelectedFileName("");
-    setPendingUploadRows([]);
-    setUploadErrorMessage("");
-    setIsUploadDialogOpen(false);
-  };
-
-  const handleExportClick = () => {
-    console.log("Export report clicked");
-    setDataActionsOpen(false);
   };
 
   const handleGenerateReportClick = () => {
     console.log("Generate report clicked");
   };
 
-  const handleAIAssistantClick = () => {
-    console.log("AI Assistant clicked");
-  };
-
-  const handleFileChange = async (event: ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) {
-      return;
-    }
-
-    try {
-      const parsedRows = await parseSpreadsheetFile(file);
-
-      setSelectedFileName(file.name);
-      setPendingUploadRows(parsedRows);
-      setUploadErrorMessage("");
-      setIsUploadDialogOpen(true);
-    } catch (error) {
-      setSelectedFileName(file.name);
-      setPendingUploadRows([]);
-      setIsUploadDialogOpen(true);
-      console.error("Failed to parse uploaded spreadsheet:", error);
-      setUploadErrorMessage("We couldn't read that spreadsheet. Please try another file.");
-    } finally {
-      event.target.value = "";
-    }
-  };
-
-  const handleUploadSave = async () => {
-    try {
-      setIsUploading(true);
-      setUploadErrorMessage("");
-
-      // Convert the parsed spreadsheet rows into the field names
-      // expected by the backend upload endpoint.
-      const normalizedRows = pendingUploadRows.map((row) => ({
-        City: String(row["City"] ?? ""),
-        State: String(row["State"] ?? ""),
-        Zip: String(row["Zip"] ?? ""),
-        Age: String(row["Age"] ?? ""),
-        Gender: String(row["Gender"] ?? ""),
-        Ethnicity: String(row["Ethnicity"] ?? ""),
-        Dietary_Restrictions: String(row["Dietary Restrictions"] ?? ""),
-        Hispanic_Latino_Or_Spanish: String(row["Hispanic, Latino Or Spanish"] ?? ""),
-        Life_Hours: String(row["Life Hours"] ?? ""),
-        Date_Of_Last_Activity: String(row["Date Of Last Activity"] ?? ""),
-        Age_1: String(row["Age_1"] ?? row["Age.1"] ?? ""),
-      }));
-
-      const response = await apiFetch("/api/volunteers/upload", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          rows: normalizedRows,
-        }),
-      });
-
-      await requireOk(response, "Failed to upload volunteer data.");
-
-      const result = await response.json();
-      console.log("Upload result:", result);
-
-      resetPendingUpload();
-      refreshDashboard();
-    } catch (error) {
-      console.error("Volunteer upload failed:", error);
-      setUploadErrorMessage("Upload failed. Please check the file and try again.");
-    } finally {
-      setIsUploading(false);
-    }
-  };
-
-  const handleUploadReplace = () => {
-    fileInputRef.current?.click();
-  };
-
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       const target = event.target as Node;
 
-      if (dataActionsRef.current && !dataActionsRef.current.contains(target)) {
-        setDataActionsOpen(false);
-      }
       if (rangeDropdownRef.current && !rangeDropdownRef.current.contains(target)) {
         setRangeOpen(false);
       }
@@ -257,11 +153,27 @@ export function Overview() {
     };
   }, []);
 
-  const filteredLastActivityData = lastActivityData.filter((item) => {
-    const isAfterStart = !startMonth || item.month >= startMonth;
-    const isBeforeEnd = !endMonth || item.month <= endMonth;
-    return isAfterStart && isBeforeEnd;
-  });
+  const chronologicalLastActivityData = [...lastActivityData].sort((firstItem, secondItem) =>
+    firstItem.month.localeCompare(secondItem.month),
+  );
+
+  const busiestLastActivityMonth = chronologicalLastActivityData.reduce<LastActivityPoint | null>((busiestMonth, item) => {
+    if (!busiestMonth || item.count > busiestMonth.count) {
+      return item;
+    }
+
+    return busiestMonth;
+  }, null);
+
+  const lastActivityInsightMessages = busiestLastActivityMonth
+    ? [
+        `Looking at this range, ${busiestLastActivityMonth.month} stands out as the busiest recent-activity month. ${busiestLastActivityMonth.count.toLocaleString()} volunteer${busiestLastActivityMonth.count === 1 ? " was" : "s were"} last active then, so this is a useful month to investigate if you are trying to understand recent engagement patterns.`,
+        `${busiestLastActivityMonth.month} is the clearest peak in this view. That month has ${busiestLastActivityMonth.count.toLocaleString()} volunteer${busiestLastActivityMonth.count === 1 ? "" : "s"} marked as last active, which may point to a strong event cycle, reporting update, or seasonal engagement pattern.`,
+        `The main thing I notice is that recent activity is clustered most heavily around ${busiestLastActivityMonth.month}. With ${busiestLastActivityMonth.count.toLocaleString()} volunteer${busiestLastActivityMonth.count === 1 ? "" : "s"} last active in that month, it is probably worth comparing against museum programming or volunteer campaigns from that period.`,
+        `For this selected range, ${busiestLastActivityMonth.month} carries the highest volunteer count. ${busiestLastActivityMonth.count.toLocaleString()} volunteer${busiestLastActivityMonth.count === 1 ? " lands" : "s land"} there, which makes it a good starting point for understanding where engagement was most concentrated.`,
+        `This chart suggests ${busiestLastActivityMonth.month} was the strongest recent-activity month in the current view. Since ${busiestLastActivityMonth.count.toLocaleString()} volunteer${busiestLastActivityMonth.count === 1 ? " was" : "s were"} last active then, the client may want to connect that spike back to scheduling, events, or data-entry timing.`,
+      ]
+    : [];
 
   const filteredGenderData = genderData;
   const ageGroupChartData = ageGroupData.map((item) => ({
@@ -272,7 +184,43 @@ export function Overview() {
     label: item.ethnicity,
     count: item.count,
   }));
-  const businessImpact = overview ? overview.hours_logged * 30 : null;
+  const estimatedValue = overview ? overview.hours_logged * volunteerHourlyValue : null;
+  const selectedRangeParam = rangeParamByLabel[selectedRange] ?? "all_time";
+
+  const saveHourlyValue = () => {
+    const nextValue = Number(hourlyValueInput);
+    if (!Number.isFinite(nextValue) || nextValue <= 0) {
+      return;
+    }
+    setVolunteerHourlyValue(nextValue);
+    window.localStorage.setItem("volunteerHourlyValue", nextValue.toString());
+    setValueModalOpen(false);
+  };
+
+  const updateLastActivityChartType = (nextType: LastActivityChartType) => {
+    setLastActivityChartType(nextType);
+    window.localStorage.setItem(lastActivityChartStorageKey, nextType);
+  };
+
+  const generateLastActivityInsight = () => {
+    if (lastActivityInsightMessages.length === 0 || lastActivityInsightLoading) {
+      return;
+    }
+
+    setGeneratedLastActivityInsight("");
+    setLastActivityInsightLoading(true);
+
+    window.setTimeout(() => {
+      const randomIndex = Math.floor(Math.random() * lastActivityInsightMessages.length);
+      setGeneratedLastActivityInsight(lastActivityInsightMessages[randomIndex]);
+      setLastActivityInsightLoading(false);
+    }, 1600);
+  };
+
+  useEffect(() => {
+    setGeneratedLastActivityInsight("");
+    setLastActivityInsightLoading(false);
+  }, [selectedRangeParam, lastActivityData]);
 
   useEffect(() => {
     async function fetchDashboardData() {
@@ -280,42 +228,44 @@ export function Overview() {
         setLoading(true);
         setError("");
 
-        const overviewResponse = await apiFetch("/api/overview");
+        const rangeQuery = `range=${encodeURIComponent(selectedRangeParam)}`;
+
+        const overviewResponse = await apiFetch(`/api/overview?${rangeQuery}`);
 
         await requireOk(overviewResponse, "Failed to fetch overview data.");
 
         const overviewJson: OverviewData = await overviewResponse.json();
         setOverview(overviewJson);
 
-        const lineChartResponse = await apiFetch("/api/charts/last-activity-by-month");
+        const lineChartResponse = await apiFetch(`/api/charts/last-activity-by-month?${rangeQuery}`);
 
         await requireOk(lineChartResponse, "Failed to fetch line chart data.");
 
         const lineChartData: LastActivityPoint[] = await lineChartResponse.json();
         setLastActivityData(lineChartData);
 
-        const genderChartResponse = await apiFetch(`/api/charts/volunteers-by-gender?start=${genderStartMonth}&end=${genderEndMonth}`);
+        const genderChartResponse = await apiFetch(`/api/charts/volunteers-by-gender?${rangeQuery}&start=${genderStartMonth}&end=${genderEndMonth}`);
 
         await requireOk(genderChartResponse, "Failed to fetch gender chart data.");
 
         const genderChartData: GenderBreakdownPoint[] = await genderChartResponse.json();
         setGenderData(genderChartData);
 
-        const cityChartResponse = await apiFetch("/api/charts/volunteers-by-city");
+        const cityChartResponse = await apiFetch(`/api/charts/volunteers-by-city?${rangeQuery}`);
 
         await requireOk(cityChartResponse, "Failed to fetch city chart data.");
 
         const cityChartData: CityBreakdownPoint[] = await cityChartResponse.json();
         setCityData(cityChartData);
 
-        const ageGroupChartResponse = await apiFetch("/api/charts/volunteers-by-age-group");
+        const ageGroupChartResponse = await apiFetch(`/api/charts/volunteers-by-age-group?${rangeQuery}`);
 
         await requireOk(ageGroupChartResponse, "Failed to fetch age group chart data.");
 
         const ageGroupChartData: AgeGroupBreakdownPoint[] = await ageGroupChartResponse.json();
         setAgeGroupData(ageGroupChartData);
 
-        const ethnicityChartResponse = await apiFetch("/api/charts/volunteers-by-ethnicity");
+        const ethnicityChartResponse = await apiFetch(`/api/charts/volunteers-by-ethnicity?${rangeQuery}`);
 
         await requireOk(ethnicityChartResponse, "Failed to fetch ethnicity chart data.");
 
@@ -334,7 +284,7 @@ export function Overview() {
     }
 
     fetchDashboardData();
-  }, [genderStartMonth, genderEndMonth, dashboardRefreshToken]);
+  }, [genderStartMonth, genderEndMonth, selectedRangeParam, dashboardRefreshToken]);
 
   return (
     <div className="space-y-6">
@@ -387,99 +337,9 @@ export function Overview() {
               Generate Report
             </button>
 
-            {/* Data Actions */}
-            <div className="relative" ref={dataActionsRef}>
-              <button
-                onClick={() => setDataActionsOpen((prev) => !prev)}
-                className="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm transition hover:bg-gray-50"
-              >
-                <span>Data Actions</span>
-                <ChevronDown className={`h-4 w-4 transition-transform ${dataActionsOpen ? "rotate-180" : ""}`} />
-              </button>
-
-              {dataActionsOpen && (
-                <div className="absolute right-0 z-20 mt-2 w-48 overflow-hidden rounded-lg border border-gray-200 bg-white shadow-lg">
-                  <button onClick={handleUploadClick} className="w-full px-4 py-3 text-left text-sm text-gray-700 transition hover:bg-gray-50">
-                    Upload Data
-                  </button>
-                  <button onClick={handleExportClick} className="w-full px-4 py-3 text-left text-sm text-gray-700 transition hover:bg-gray-50">
-                    Export Report
-                  </button>
-                </div>
-              )}
-            </div>
           </div>
-
-          {selectedFileName && <p className="text-sm text-gray-500">Selected file: {selectedFileName}</p>}
         </div>
       </div>
-
-      <input ref={fileInputRef} type="file" accept=".xlsx,.xls,.csv" onChange={handleFileChange} className="hidden" />
-
-      <Dialog
-        open={isUploadDialogOpen}
-        onOpenChange={(open) => {
-          if (open) {
-            setIsUploadDialogOpen(true);
-            return;
-          }
-
-          resetPendingUpload();
-        }}
-      >
-        <DialogContent className="max-w-3xl border-gray-200 bg-white">
-          <DialogHeader>
-            <DialogTitle>Review Uploaded Data</DialogTitle>
-            <DialogDescription>
-              {uploadErrorMessage ? uploadErrorMessage : "Choose what you'd like to do with the selected spreadsheet."}
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-4">
-            <div className="rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-700">
-              <p>
-                <span className="font-medium text-gray-900">File:</span> {selectedFileName || "No file selected"}
-              </p>
-              {!uploadErrorMessage && (
-                <p>
-                  <span className="font-medium text-gray-900">Rows parsed:</span> {pendingUploadRows.length}
-                </p>
-              )}
-            </div>
-
-            {!uploadErrorMessage && pendingUploadRows.length === 0 && (
-              <div className="rounded-lg border border-dashed border-gray-300 px-4 py-6 text-sm text-gray-500">
-                No rows were found in the selected sheet.
-              </div>
-            )}
-          </div>
-
-          <DialogFooter>
-            <button
-              type="button"
-              onClick={resetPendingUpload}
-              className="rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50"
-            >
-              Cancel
-            </button>
-            <button
-              type="button"
-              onClick={handleUploadReplace}
-              className="rounded-lg border border-blue-200 bg-blue-50 px-4 py-2 text-sm font-medium text-blue-700 transition hover:bg-blue-100"
-            >
-              Upload New Data
-            </button>
-            <button
-              type="button"
-              onClick={handleUploadSave}
-              disabled={Boolean(uploadErrorMessage) || isUploading}
-              className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-blue-300"
-            >
-              {isUploading ? "Saving..." : "Save"}
-            </button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
 
       {/* API-backed dashboard content */}
       <div className="space-y-6">
@@ -515,55 +375,140 @@ export function Overview() {
           <DashboardStatCard title="Hours Logged" value={overview?.hours_logged ?? "--"} icon={Clock3} iconColor="bg-orange-500" />
           <DashboardStatCard title="Average Age" value={overview?.average_age ?? "--"} icon={Cake} iconColor="bg-purple-600" />
           <DashboardStatCard title="Cities Represented" value={overview?.cities_represented ?? "--"} icon={MapPin} iconColor="bg-green-600" />
-          <DashboardStatCard title="Business Impact" value={businessImpact !== null ? `$${businessImpact.toLocaleString()}` : "--"} icon={DollarSign} iconColor="bg-emerald-600" />
+          <DashboardStatCard
+            title="Estimated Value"
+            value={estimatedValue !== null ? `$${Math.round(estimatedValue).toLocaleString()}` : "--"}
+            icon={DollarSign}
+            iconColor="bg-emerald-600"
+            action={(
+              <button
+                type="button"
+                onClick={() => {
+                  setHourlyValueInput(volunteerHourlyValue.toString());
+                  setValueModalOpen(true);
+                }}
+                className="rounded-full p-1 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
+                aria-label="Edit estimated value calculation"
+                title="Edit estimated value calculation"
+              >
+                <HelpCircle className="h-4 w-4" />
+              </button>
+            )}
+          />
         </div>
+
+        {valueModalOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4">
+            <div className="w-full max-w-md rounded-xl bg-white shadow-xl">
+              <div className="border-b border-slate-200 px-6 py-4">
+                <h2 className="text-lg font-semibold text-slate-900">Estimated Volunteer Value</h2>
+                <p className="mt-1 text-sm text-slate-500">
+                  This estimate multiplies logged volunteer hours by an hourly valuation.
+                </p>
+              </div>
+
+              <div className="space-y-4 px-6 py-5">
+                <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
+                  <div className="flex justify-between gap-4">
+                    <span>Hours in current range</span>
+                    <span className="font-medium text-slate-900">{overview?.hours_logged?.toLocaleString() ?? 0}</span>
+                  </div>
+                  <div className="mt-2 flex justify-between gap-4">
+                    <span>Current valuation</span>
+                    <span className="font-medium text-slate-900">${volunteerHourlyValue.toLocaleString()}/hr</span>
+                  </div>
+                  <div className="mt-2 flex justify-between gap-4 border-t border-slate-200 pt-2">
+                    <span>Estimated value</span>
+                    <span className="font-semibold text-slate-900">
+                      {estimatedValue !== null ? `$${Math.round(estimatedValue).toLocaleString()}` : "$0"}
+                    </span>
+                  </div>
+                </div>
+
+                <label className="block text-sm">
+                  <span className="font-medium text-slate-700">Hourly valuation*</span>
+                  <div className="mt-1 flex items-center rounded-lg border border-slate-300 bg-white px-3 focus-within:ring-2 focus-within:ring-blue-600">
+                    <span className="text-slate-500">$</span>
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={hourlyValueInput}
+                      onChange={(event) => setHourlyValueInput(event.target.value)}
+                      className="h-10 w-full border-0 px-2 text-sm outline-none"
+                    />
+                    <span className="text-slate-500">/hr</span>
+                  </div>
+                  <span className="mt-2 block text-xs text-slate-500">
+                    *Default based on Oklahoma volunteer time valuation.
+                  </span>
+                </label>
+              </div>
+
+              <div className="flex justify-end gap-3 border-t border-slate-200 px-6 py-4">
+                <button
+                  type="button"
+                  onClick={() => setValueModalOpen(false)}
+                  className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={saveHourlyValue}
+                  className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-700"
+                >
+                  Save
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         <div className="grid grid-cols-1 gap-6">
           <ChartPanel
-            title="Last Activity by Month"
-            description="Number of volunteers grouped by their most recent recorded activity month."
+            title="Recent Volunteer Activity"
+            description="Volunteers grouped by the month of their most recent recorded activity."
             loading={loading}
-            isEmpty={filteredLastActivityData.length === 0}
-            emptyMessage="No last activity dates are available for the current filters."
+            isEmpty={chronologicalLastActivityData.length === 0}
+            emptyMessage="No volunteer activity was found for this time range."
             controls={(
-              <div className="mt-4 flex flex-col gap-4 md:flex-row md:items-end">
-              <div className="flex flex-col">
-                <label className="mb-1 text-sm font-medium text-slate-700">Chart Type</label>
-                <select
-                  value={lastActivityChartType}
-                  onChange={(event) => setLastActivityChartType(event.target.value as "line" | "bar" | "area")}
-                  className="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm"
+              <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+                <div className="flex max-w-xs flex-col">
+                  <label className="mb-1 text-sm font-medium text-slate-700">Chart Type</label>
+                  <select
+                    value={lastActivityChartType}
+                    onChange={(event) => updateLastActivityChartType(event.target.value as LastActivityChartType)}
+                    className="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm"
+                  >
+                    <option value="bar">Bar Chart</option>
+                    <option value="line">Line Chart</option>
+                    <option value="area">Area Chart</option>
+                  </select>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={generateLastActivityInsight}
+                  disabled={chronologicalLastActivityData.length === 0 || lastActivityInsightLoading}
+                  className="inline-flex items-center justify-center rounded-lg border border-blue-200 bg-blue-50 px-4 py-2 text-sm font-medium text-blue-700 transition hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-60"
                 >
-                  <option value="line">Line Chart</option>
-                  <option value="bar">Bar / Column Chart</option>
-                  <option value="area">Area Chart</option>
-                </select>
-              </div>
-
-              <div className="flex flex-col">
-                <label className="mb-1 text-sm font-medium text-slate-700">Start Month</label>
-                <input
-                  type="month"
-                  value={startMonth}
-                  onChange={(event) => setStartMonth(event.target.value)}
-                  className="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm"
-                />
-              </div>
-
-              <div className="flex flex-col">
-                <label className="mb-1 text-sm font-medium text-slate-700">End Month</label>
-                <input
-                  type="month"
-                  value={endMonth}
-                  onChange={(event) => setEndMonth(event.target.value)}
-                  className="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm"
-                />
-              </div>
+                  {lastActivityInsightLoading ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <Sparkles className="mr-2 h-4 w-4" />
+                  )}
+                  {lastActivityInsightLoading ? "Generating..." : "Generate Insight"}
+                </button>
               </div>
             )}
           >
-
-            <LastActivityChart data={filteredLastActivityData} chartType={lastActivityChartType} />
+            {generatedLastActivityInsight && (
+              <p className="mt-5 rounded-lg border border-blue-100 bg-blue-50 px-4 py-3 text-sm text-blue-800">
+                {generatedLastActivityInsight}
+              </p>
+            )}
+            <LastActivityChart data={chronologicalLastActivityData} chartType={lastActivityChartType} />
           </ChartPanel>
 
           <ChartPanel

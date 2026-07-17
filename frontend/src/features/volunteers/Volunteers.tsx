@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
 import {
   Area,
   AreaChart,
@@ -18,13 +18,12 @@ import {
   ChevronDown,
   Clock3,
   Download,
-  Pencil,
-  Plus,
-  Power,
+  FileUp,
   Search,
   TrendingUp,
   UserCheck,
 } from "lucide-react";
+import * as XLSX from "xlsx";
 import { apiFetch, requireOk } from "@/lib/api";
 
 type Volunteer = {
@@ -48,25 +47,7 @@ type Volunteer = {
   life_hours: number | null;
 };
 
-type VolunteerFormState = {
-  first_name: string;
-  last_name: string;
-  email: string;
-  phone: string;
-  city: string;
-  state: string;
-  zip: string;
-  age: string;
-  age_group: string;
-  gender: string;
-  ethnicity: string;
-  hispanic_latino: string;
-  dietary_restrictions: string;
-  joined_date: string;
-  last_activity: string;
-  life_hours: string;
-  is_active: boolean;
-};
+type SpreadsheetRow = Record<string, unknown>;
 
 const monthLabels = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 const ageColors = ["#059669", "#34d399", "#a7f3d0", "#f2c84b", "#f59e0b", "#2563eb", "#7c3aed"];
@@ -83,26 +64,49 @@ const chartOptions = [
 
 type MetricValue = (typeof metricOptions)[number]["value"];
 type ChartValue = (typeof chartOptions)[number]["value"];
+type SortValue =
+  | "name-asc"
+  | "city-asc"
+  | "age-asc"
+  | "age-desc"
+  | "hours-desc"
+  | "hours-asc"
+  | "last-activity-desc"
+  | "last-activity-asc";
+const volunteersPerPage = 25;
 
-const emptyVolunteerForm: VolunteerFormState = {
-  first_name: "",
-  last_name: "",
-  email: "",
-  phone: "",
-  city: "",
-  state: "OK",
-  zip: "",
-  age: "",
-  age_group: "",
-  gender: "",
-  ethnicity: "",
-  hispanic_latino: "",
-  dietary_restrictions: "None",
-  joined_date: "",
-  last_activity: "",
-  life_hours: "",
-  is_active: true,
+const parseSpreadsheetFile = async (file: File): Promise<SpreadsheetRow[]> => {
+  const buffer = await file.arrayBuffer();
+  const workbook = XLSX.read(buffer, { type: "array" });
+  const firstSheetName = workbook.SheetNames[0];
+
+  if (!firstSheetName) {
+    return [];
+  }
+
+  const worksheet = workbook.Sheets[firstSheetName];
+
+  return XLSX.utils.sheet_to_json<SpreadsheetRow>(worksheet, {
+    defval: "",
+    raw: false,
+  });
 };
+
+function normalizeSpreadsheetRows(rows: SpreadsheetRow[]) {
+  return rows.map((row) => ({
+    City: String(row["City"] ?? ""),
+    State: String(row["State"] ?? ""),
+    Zip: String(row["Zip"] ?? ""),
+    Age: String(row["Age"] ?? ""),
+    Gender: String(row["Gender"] ?? ""),
+    Ethnicity: String(row["Ethnicity"] ?? ""),
+    Dietary_Restrictions: String(row["Dietary Restrictions"] ?? ""),
+    Hispanic_Latino_Or_Spanish: String(row["Hispanic, Latino Or Spanish"] ?? ""),
+    Life_Hours: String(row["Life Hours"] ?? ""),
+    Date_Of_Last_Activity: String(row["Date Of Last Activity"] ?? ""),
+    Age_1: String(row["Age_1"] ?? row["Age.1"] ?? ""),
+  }));
+}
 
 function getMonthIndex(value: string | null) {
   if (!value) return null;
@@ -172,68 +176,25 @@ function downloadCsv(volunteers: Volunteer[]) {
   URL.revokeObjectURL(url);
 }
 
-function volunteerToForm(volunteer: Volunteer): VolunteerFormState {
-  return {
-    first_name: volunteer.first_name,
-    last_name: volunteer.last_name,
-    email: volunteer.email ?? "",
-    phone: volunteer.phone ?? "",
-    city: volunteer.city ?? "",
-    state: volunteer.state || "OK",
-    zip: volunteer.zip ?? "",
-    age: volunteer.age?.toString() ?? "",
-    age_group: volunteer.age_group ?? "",
-    gender: volunteer.gender ?? "",
-    ethnicity: volunteer.ethnicity ?? "",
-    hispanic_latino: volunteer.hispanic_latino ?? "",
-    dietary_restrictions: volunteer.dietary_restrictions || "None",
-    joined_date: volunteer.joined_date ?? "",
-    last_activity: volunteer.last_activity ?? "",
-    life_hours: volunteer.life_hours?.toString() ?? "",
-    is_active: volunteer.is_active,
-  };
-}
-
-function formToPayload(form: VolunteerFormState) {
-  return {
-    first_name: form.first_name,
-    last_name: form.last_name,
-    email: form.email || null,
-    phone: form.phone || null,
-    city: form.city || null,
-    state: form.state || "OK",
-    zip: form.zip || null,
-    age: form.age ? Number(form.age) : null,
-    age_group: form.age_group || null,
-    gender: form.gender || null,
-    ethnicity: form.ethnicity || null,
-    hispanic_latino: form.hispanic_latino || null,
-    dietary_restrictions: form.dietary_restrictions || "None",
-    joined_date: form.joined_date || null,
-    last_activity: form.last_activity || null,
-    life_hours: form.life_hours ? Number(form.life_hours) : null,
-    is_active: form.is_active,
-  };
-}
-
 export function Volunteers() {
   const metricDropdownRef = useRef<HTMLDivElement | null>(null);
   const chartDropdownRef = useRef<HTMLDivElement | null>(null);
+  const importFileInputRef = useRef<HTMLInputElement | null>(null);
 
   const [volunteers, setVolunteers] = useState<Volunteer[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | "active" | "inactive">("all");
+  const [sortBy, setSortBy] = useState<SortValue>("hours-desc");
+  const [currentPage, setCurrentPage] = useState(1);
   const [metricOpen, setMetricOpen] = useState(false);
   const [chartOpen, setChartOpen] = useState(false);
   const [selectedMetric, setSelectedMetric] = useState<MetricValue>("volunteers");
   const [selectedChart, setSelectedChart] = useState<ChartValue>("bar");
-  const [isFormOpen, setIsFormOpen] = useState(false);
-  const [editingVolunteer, setEditingVolunteer] = useState<Volunteer | null>(null);
-  const [form, setForm] = useState<VolunteerFormState>(emptyVolunteerForm);
-  const [formError, setFormError] = useState("");
-  const [saving, setSaving] = useState(false);
+  const [importUploading, setImportUploading] = useState(false);
+  const [importError, setImportError] = useState("");
+  const [selectedImportFileName, setSelectedImportFileName] = useState("");
 
   async function fetchVolunteers() {
     try {
@@ -280,6 +241,51 @@ export function Volunteers() {
       return matchesStatus && (!query || searchableText.includes(query));
     });
   }, [searchQuery, statusFilter, volunteers]);
+
+  const sortedVolunteers = useMemo(() => {
+    const sorted = [...filteredVolunteers];
+
+    sorted.sort((a, b) => {
+      if (sortBy === "name-asc") {
+        return `${a.first_name} ${a.last_name}`.localeCompare(`${b.first_name} ${b.last_name}`);
+      }
+      if (sortBy === "city-asc") {
+        return (a.city ?? "").localeCompare(b.city ?? "");
+      }
+      if (sortBy === "age-asc") {
+        return (a.age ?? Number.MAX_SAFE_INTEGER) - (b.age ?? Number.MAX_SAFE_INTEGER);
+      }
+      if (sortBy === "age-desc") {
+        return (b.age ?? -1) - (a.age ?? -1);
+      }
+      if (sortBy === "hours-asc") {
+        return (a.life_hours ?? 0) - (b.life_hours ?? 0);
+      }
+      if (sortBy === "last-activity-asc") {
+        return (a.last_activity ?? "").localeCompare(b.last_activity ?? "");
+      }
+      if (sortBy === "last-activity-desc") {
+        return (b.last_activity ?? "").localeCompare(a.last_activity ?? "");
+      }
+      return (b.life_hours ?? 0) - (a.life_hours ?? 0);
+    });
+
+    return sorted;
+  }, [filteredVolunteers, sortBy]);
+
+  const totalPages = Math.max(1, Math.ceil(sortedVolunteers.length / volunteersPerPage));
+  const pageStartIndex = (currentPage - 1) * volunteersPerPage;
+  const paginatedVolunteers = sortedVolunteers.slice(pageStartIndex, pageStartIndex + volunteersPerPage);
+  const pageRangeStart = sortedVolunteers.length === 0 ? 0 : pageStartIndex + 1;
+  const pageRangeEnd = Math.min(pageStartIndex + volunteersPerPage, sortedVolunteers.length);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, statusFilter, sortBy]);
+
+  useEffect(() => {
+    setCurrentPage((page) => Math.min(page, totalPages));
+  }, [totalPages]);
 
   const totalVolunteers = volunteers.length;
   const activeVolunteers = volunteers.filter((volunteer) => volunteer.is_active).length;
@@ -409,82 +415,44 @@ export function Volunteers() {
     );
   };
 
-  const openCreateForm = () => {
-    setEditingVolunteer(null);
-    setForm(emptyVolunteerForm);
-    setFormError("");
-    setIsFormOpen(true);
+  const handleImportUploadClick = () => {
+    importFileInputRef.current?.click();
   };
 
-  const openEditForm = (volunteer: Volunteer) => {
-    setEditingVolunteer(volunteer);
-    setForm(volunteerToForm(volunteer));
-    setFormError("");
-    setIsFormOpen(true);
-  };
-
-  const closeForm = () => {
-    if (saving) return;
-    setIsFormOpen(false);
-    setEditingVolunteer(null);
-    setForm(emptyVolunteerForm);
-    setFormError("");
-  };
-
-  const setFormField = (field: keyof VolunteerFormState, value: string | boolean) => {
-    setForm((currentForm) => ({ ...currentForm, [field]: value }));
-  };
-
-  const saveVolunteer = async () => {
-    if (!form.first_name.trim() || !form.last_name.trim()) {
-      setFormError("First and last name are required.");
-      return;
-    }
+  const handleImportFileChange = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
 
     try {
-      setSaving(true);
-      setFormError("");
-      const response = await apiFetch(
-        editingVolunteer ? `/api/volunteers/${editingVolunteer.id}` : "/api/volunteers",
-        {
-          method: editingVolunteer ? "PUT" : "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(formToPayload(form)),
-        },
-      );
-      await requireOk(response, "Failed to save volunteer.");
-      await fetchVolunteers();
-      closeForm();
-    } catch (err) {
-      setFormError(
-        err instanceof Error
-          ? `Failed to save volunteer: ${err.message}`
-          : "Failed to save volunteer.",
-      );
-    } finally {
-      setSaving(false);
-    }
-  };
+      setImportUploading(true);
+      setImportError("");
+      setSelectedImportFileName(file.name);
+      const parsedRows = await parseSpreadsheetFile(file);
 
-  const toggleVolunteerStatus = async (volunteer: Volunteer) => {
-    try {
-      setError("");
-      const response = await apiFetch(`/api/volunteers/${volunteer.id}`, {
-        method: "PUT",
+      if (parsedRows.length === 0) {
+        setImportError("No rows were found in the selected spreadsheet.");
+        return;
+      }
+
+      const response = await apiFetch("/api/volunteers/upload", {
+        method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          ...formToPayload(volunteerToForm(volunteer)),
-          is_active: !volunteer.is_active,
+          file_name: file.name,
+          rows: normalizeSpreadsheetRows(parsedRows),
         }),
       });
-      await requireOk(response, "Failed to update volunteer status.");
+      await requireOk(response, "Failed to replace analytics dataset.");
       await fetchVolunteers();
     } catch (err) {
-      setError(
+      setImportError(
         err instanceof Error
-          ? `Could not update volunteer status: ${err.message}`
-          : "Could not update volunteer status.",
+          ? `Could not replace analytics dataset: ${err.message}`
+          : "Could not replace analytics dataset.",
       );
+    } finally {
+      setImportUploading(false);
+      event.target.value = "";
     }
   };
 
@@ -498,11 +466,12 @@ export function Volunteers() {
 
         <div className="flex flex-wrap items-center gap-3">
           <button
-            onClick={openCreateForm}
-            className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-emerald-700"
+            onClick={handleImportUploadClick}
+            disabled={importUploading}
+            className="inline-flex items-center gap-2 rounded-lg border border-blue-200 bg-blue-50 px-4 py-2 text-sm font-medium text-blue-700 shadow-sm transition hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            <Plus className="h-4 w-4" />
-            Add Volunteer
+            <FileUp className="h-4 w-4" />
+            {importUploading ? "Replacing..." : "Replace Dataset"}
           </button>
           <button
             onClick={() => downloadCsv(filteredVolunteers)}
@@ -515,9 +484,29 @@ export function Volunteers() {
         </div>
       </div>
 
+      <input
+        ref={importFileInputRef}
+        type="file"
+        accept=".xlsx,.xls,.csv"
+        onChange={handleImportFileChange}
+        className="hidden"
+      />
+
       {error && (
         <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
           {error}
+        </div>
+      )}
+
+      {importError && (
+        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
+          {importError}
+        </div>
+      )}
+
+      {selectedImportFileName && (
+        <div className="rounded-lg border border-blue-100 bg-blue-50 px-4 py-3 text-sm text-blue-700">
+          Active dataset replaced from {selectedImportFileName}. Dashboard analytics now reflect the latest upload.
         </div>
       )}
 
@@ -554,7 +543,7 @@ export function Volunteers() {
         <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
           <div>
             <h2 className="text-xl font-semibold text-gray-900">Volunteer Records</h2>
-            <p className="text-sm text-gray-500">Search and filter records loaded from the volunteers table.</p>
+            <p className="text-sm text-gray-500">Search and filter rows from the active uploaded spreadsheet.</p>
           </div>
           <div className="flex flex-col gap-3 sm:flex-row">
             <div className="relative">
@@ -575,6 +564,20 @@ export function Volunteers() {
               <option value="active">Active only</option>
               <option value="inactive">Inactive only</option>
             </select>
+            <select
+              value={sortBy}
+              onChange={(event) => setSortBy(event.target.value as SortValue)}
+              className="h-10 rounded-lg border border-gray-300 px-3 text-sm outline-none focus:ring-2 focus:ring-blue-600"
+            >
+              <option value="hours-desc">Sort: Hours high to low</option>
+              <option value="hours-asc">Sort: Hours low to high</option>
+              <option value="last-activity-desc">Sort: Recent activity first</option>
+              <option value="last-activity-asc">Sort: Oldest activity first</option>
+              <option value="age-asc">Sort: Age low to high</option>
+              <option value="age-desc">Sort: Age high to low</option>
+              <option value="city-asc">Sort: City A-Z</option>
+              <option value="name-asc">Sort: Name A-Z</option>
+            </select>
           </div>
         </div>
 
@@ -590,24 +593,23 @@ export function Volunteers() {
                   <th className="px-4 py-3">Hours</th>
                   <th className="px-4 py-3">Last Activity</th>
                   <th className="px-4 py-3">Status</th>
-                  <th className="px-4 py-3">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100 bg-white">
                 {loading ? (
                   <tr>
-                    <td className="px-4 py-8 text-center text-gray-500" colSpan={8}>
+                    <td className="px-4 py-8 text-center text-gray-500" colSpan={7}>
                       Loading volunteers...
                     </td>
                   </tr>
                 ) : filteredVolunteers.length === 0 ? (
                   <tr>
-                    <td className="px-4 py-8 text-center text-gray-500" colSpan={8}>
-                      No volunteer records match the current filters.
+                    <td className="px-4 py-8 text-center text-gray-500" colSpan={7}>
+                      No uploaded spreadsheet rows match the current filters.
                     </td>
                   </tr>
                 ) : (
-                  filteredVolunteers.slice(0, 25).map((volunteer) => (
+                  paginatedVolunteers.map((volunteer) => (
                     <tr key={volunteer.id} className="hover:bg-gray-50">
                       <td className="px-4 py-3">
                         <div className="font-medium text-gray-900">
@@ -627,28 +629,6 @@ export function Volunteers() {
                           {volunteer.is_active ? "Active" : "Inactive"}
                         </span>
                       </td>
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-2">
-                          <button
-                            onClick={() => openEditForm(volunteer)}
-                            className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-gray-200 text-gray-600 transition hover:bg-gray-50"
-                            title="Edit volunteer"
-                          >
-                            <Pencil className="h-4 w-4" />
-                          </button>
-                          <button
-                            onClick={() => toggleVolunteerStatus(volunteer)}
-                            className={`inline-flex h-8 w-8 items-center justify-center rounded-md border transition ${
-                              volunteer.is_active
-                                ? "border-orange-200 text-orange-600 hover:bg-orange-50"
-                                : "border-emerald-200 text-emerald-600 hover:bg-emerald-50"
-                            }`}
-                            title={volunteer.is_active ? "Deactivate volunteer" : "Activate volunteer"}
-                          >
-                            <Power className="h-4 w-4" />
-                          </button>
-                        </div>
-                      </td>
                     </tr>
                   ))
                 )}
@@ -656,9 +636,52 @@ export function Volunteers() {
             </table>
           </div>
         </div>
-        {filteredVolunteers.length > 25 && (
-          <p className="mt-3 text-xs text-gray-500">Showing first 25 of {filteredVolunteers.length} matching records.</p>
-        )}
+        <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-xs text-gray-500">
+            Showing {pageRangeStart}-{pageRangeEnd} of {filteredVolunteers.length} matching records.
+          </p>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}
+              disabled={currentPage === 1}
+              className="rounded-md border border-gray-200 px-3 py-1.5 text-sm font-medium text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              Previous
+            </button>
+
+            {Array.from({ length: totalPages }, (_, index) => index + 1)
+              .filter((page) => page === 1 || page === totalPages || Math.abs(page - currentPage) <= 1)
+              .map((page, index, visiblePages) => {
+                const previousPage = visiblePages[index - 1];
+                const showGap = previousPage != null && page - previousPage > 1;
+
+                return (
+                  <span key={page} className="flex items-center gap-2">
+                    {showGap && <span className="text-sm text-gray-400">...</span>}
+                    <button
+                      onClick={() => setCurrentPage(page)}
+                      className={`min-w-9 rounded-md border px-3 py-1.5 text-sm font-medium transition ${
+                        currentPage === page
+                          ? "border-blue-600 bg-blue-600 text-white"
+                          : "border-gray-200 text-gray-700 hover:bg-gray-50"
+                      }`}
+                    >
+                      {page}
+                    </button>
+                  </span>
+                );
+              })}
+
+            <button
+              onClick={() => setCurrentPage((page) => Math.min(totalPages, page + 1))}
+              disabled={currentPage === totalPages}
+              className="rounded-md border border-gray-200 px-3 py-1.5 text-sm font-medium text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              Next
+            </button>
+          </div>
+        </div>
       </div>
 
       <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
@@ -787,130 +810,6 @@ export function Volunteers() {
         </ResponsiveContainer>
       </div>
 
-      {isFormOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4">
-          <div className="max-h-[90vh] w-full max-w-4xl overflow-y-auto rounded-lg bg-white shadow-xl">
-            <div className="flex items-start justify-between border-b border-gray-200 px-6 py-4">
-              <div>
-                <h2 className="text-lg font-semibold text-gray-900">
-                  {editingVolunteer ? "Edit Volunteer" : "Add Volunteer"}
-                </h2>
-                <p className="text-sm text-gray-500">
-                  Manage staff-maintained volunteer records.
-                </p>
-              </div>
-              <button
-                onClick={closeForm}
-                className="rounded-md px-2 py-1 text-sm text-gray-500 transition hover:bg-gray-100"
-              >
-                Close
-              </button>
-            </div>
-
-            <div className="grid grid-cols-1 gap-4 px-6 py-5 md:grid-cols-2">
-              <label className="space-y-1 text-sm">
-                <span className="font-medium text-gray-700">First Name *</span>
-                <input value={form.first_name} onChange={(event) => setFormField("first_name", event.target.value)} className="w-full rounded-lg border border-gray-300 px-3 py-2 outline-none focus:ring-2 focus:ring-blue-600" />
-              </label>
-              <label className="space-y-1 text-sm">
-                <span className="font-medium text-gray-700">Last Name *</span>
-                <input value={form.last_name} onChange={(event) => setFormField("last_name", event.target.value)} className="w-full rounded-lg border border-gray-300 px-3 py-2 outline-none focus:ring-2 focus:ring-blue-600" />
-              </label>
-              <label className="space-y-1 text-sm">
-                <span className="font-medium text-gray-700">Email</span>
-                <input type="email" value={form.email} onChange={(event) => setFormField("email", event.target.value)} className="w-full rounded-lg border border-gray-300 px-3 py-2 outline-none focus:ring-2 focus:ring-blue-600" />
-              </label>
-              <label className="space-y-1 text-sm">
-                <span className="font-medium text-gray-700">Phone</span>
-                <input value={form.phone} onChange={(event) => setFormField("phone", event.target.value)} className="w-full rounded-lg border border-gray-300 px-3 py-2 outline-none focus:ring-2 focus:ring-blue-600" />
-              </label>
-              <label className="space-y-1 text-sm">
-                <span className="font-medium text-gray-700">City</span>
-                <input value={form.city} onChange={(event) => setFormField("city", event.target.value)} className="w-full rounded-lg border border-gray-300 px-3 py-2 outline-none focus:ring-2 focus:ring-blue-600" />
-              </label>
-              <div className="grid grid-cols-2 gap-3">
-                <label className="space-y-1 text-sm">
-                  <span className="font-medium text-gray-700">State</span>
-                  <input maxLength={2} value={form.state} onChange={(event) => setFormField("state", event.target.value)} className="w-full rounded-lg border border-gray-300 px-3 py-2 uppercase outline-none focus:ring-2 focus:ring-blue-600" />
-                </label>
-                <label className="space-y-1 text-sm">
-                  <span className="font-medium text-gray-700">Zip</span>
-                  <input value={form.zip} onChange={(event) => setFormField("zip", event.target.value)} className="w-full rounded-lg border border-gray-300 px-3 py-2 outline-none focus:ring-2 focus:ring-blue-600" />
-                </label>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <label className="space-y-1 text-sm">
-                  <span className="font-medium text-gray-700">Age</span>
-                  <input type="number" min="0" value={form.age} onChange={(event) => setFormField("age", event.target.value)} className="w-full rounded-lg border border-gray-300 px-3 py-2 outline-none focus:ring-2 focus:ring-blue-600" />
-                </label>
-                <label className="space-y-1 text-sm">
-                  <span className="font-medium text-gray-700">Age Group</span>
-                  <input value={form.age_group} onChange={(event) => setFormField("age_group", event.target.value)} className="w-full rounded-lg border border-gray-300 px-3 py-2 outline-none focus:ring-2 focus:ring-blue-600" />
-                </label>
-              </div>
-              <label className="space-y-1 text-sm">
-                <span className="font-medium text-gray-700">Gender</span>
-                <input value={form.gender} onChange={(event) => setFormField("gender", event.target.value)} className="w-full rounded-lg border border-gray-300 px-3 py-2 outline-none focus:ring-2 focus:ring-blue-600" />
-              </label>
-              <label className="space-y-1 text-sm">
-                <span className="font-medium text-gray-700">Ethnicity</span>
-                <input value={form.ethnicity} onChange={(event) => setFormField("ethnicity", event.target.value)} className="w-full rounded-lg border border-gray-300 px-3 py-2 outline-none focus:ring-2 focus:ring-blue-600" />
-              </label>
-              <label className="space-y-1 text-sm">
-                <span className="font-medium text-gray-700">Hispanic/Latino</span>
-                <select value={form.hispanic_latino} onChange={(event) => setFormField("hispanic_latino", event.target.value)} className="w-full rounded-lg border border-gray-300 px-3 py-2 outline-none focus:ring-2 focus:ring-blue-600">
-                  <option value="">Unspecified</option>
-                  <option value="Yes">Yes</option>
-                  <option value="No">No</option>
-                </select>
-              </label>
-              <label className="space-y-1 text-sm">
-                <span className="font-medium text-gray-700">Dietary Restrictions</span>
-                <input value={form.dietary_restrictions} onChange={(event) => setFormField("dietary_restrictions", event.target.value)} className="w-full rounded-lg border border-gray-300 px-3 py-2 outline-none focus:ring-2 focus:ring-blue-600" />
-              </label>
-              <label className="space-y-1 text-sm">
-                <span className="font-medium text-gray-700">Joined Date</span>
-                <input type="date" value={form.joined_date} onChange={(event) => setFormField("joined_date", event.target.value)} className="w-full rounded-lg border border-gray-300 px-3 py-2 outline-none focus:ring-2 focus:ring-blue-600" />
-              </label>
-              <label className="space-y-1 text-sm">
-                <span className="font-medium text-gray-700">Last Activity</span>
-                <input type="date" value={form.last_activity} onChange={(event) => setFormField("last_activity", event.target.value)} className="w-full rounded-lg border border-gray-300 px-3 py-2 outline-none focus:ring-2 focus:ring-blue-600" />
-              </label>
-              <label className="space-y-1 text-sm">
-                <span className="font-medium text-gray-700">Life Hours</span>
-                <input type="number" min="0" step="0.1" value={form.life_hours} onChange={(event) => setFormField("life_hours", event.target.value)} className="w-full rounded-lg border border-gray-300 px-3 py-2 outline-none focus:ring-2 focus:ring-blue-600" />
-              </label>
-              <label className="flex items-center gap-2 pt-7 text-sm text-gray-700">
-                <input type="checkbox" checked={form.is_active} onChange={(event) => setFormField("is_active", event.target.checked)} />
-                Active volunteer
-              </label>
-            </div>
-
-            {formError && (
-              <div className="mx-6 mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
-                {formError}
-              </div>
-            )}
-
-            <div className="flex justify-end gap-3 border-t border-gray-200 px-6 py-4">
-              <button
-                onClick={closeForm}
-                disabled={saving}
-                className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50 disabled:opacity-50"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={saveVolunteer}
-                disabled={saving}
-                className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-700 disabled:opacity-50"
-              >
-                {saving ? "Saving..." : "Save Volunteer"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
