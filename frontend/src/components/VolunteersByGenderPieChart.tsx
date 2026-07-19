@@ -21,6 +21,11 @@ const COLORS = ["#2563eb", "#ec4899", "#10b981", "#f59e0b", "#8b5cf6"];
 
 // Chart component for volunteer counts grouped by gender.
 export default function VolunteersByGenderPieChart({ data, chartType }: VolunteersByGenderPieChartProps) {
+  const tooltipFormatter = (value: number) => [
+    `${value.toLocaleString()} volunteer${value === 1 ? "" : "s"}`,
+    "Volunteers",
+  ];
+
   const sortedData = [...data].sort((left, right) => {
     if (right.count !== left.count) {
       return right.count - left.count;
@@ -40,7 +45,7 @@ export default function VolunteersByGenderPieChart({ data, chartType }: Voluntee
                 <Cell key={`cell-${entry.gender}`} fill={COLORS[index % COLORS.length]} />
               ))}
             </Pie>
-            <Tooltip />
+            <Tooltip formatter={tooltipFormatter} />
             <Legend />
           </PieChart>
         ) : chartType === "bar" ? (
@@ -48,7 +53,7 @@ export default function VolunteersByGenderPieChart({ data, chartType }: Voluntee
             <CartesianGrid strokeDasharray="3 3" />
             <XAxis dataKey="gender" />
             <YAxis allowDecimals={false} />
-            <Tooltip />
+            <Tooltip formatter={tooltipFormatter} />
             <Bar dataKey="count" fill="#2563eb" radius={[6, 6, 0, 0]} />
           </BarChart>
         ) : (
@@ -56,7 +61,7 @@ export default function VolunteersByGenderPieChart({ data, chartType }: Voluntee
             <CartesianGrid strokeDasharray="3 3" />
             <XAxis type="number" allowDecimals={false} />
             <YAxis type="category" dataKey="gender" width={100} />
-            <Tooltip />
+            <Tooltip formatter={tooltipFormatter} />
             <Bar dataKey="count" fill="#2563eb" radius={[0, 6, 6, 0]} />
           </BarChart>
         )}

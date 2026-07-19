@@ -16,10 +16,20 @@ const rangeParamByLabel: Record<string, string> = {
 };
 const defaultVolunteerHourlyValue = 30.63;
 const lastActivityChartStorageKey = "lastActivityChartType";
+const cityChartStorageKey = "cityChartType";
+const genderChartStorageKey = "genderChartType";
+const ageGroupChartStorageKey = "ageGroupChartType";
+const ethnicityChartStorageKey = "ethnicityChartType";
 
 type LastActivityChartType = "line" | "bar" | "area";
+type CityChartType = "vertical" | "horizontal" | "pie";
+type GenderChartType = "pie" | "bar" | "horizontal";
+type BreakdownChartType = "pie" | "bar" | "horizontal";
 
 const validLastActivityChartTypes: LastActivityChartType[] = ["bar", "line", "area"];
+const validCityChartTypes: CityChartType[] = ["vertical", "horizontal", "pie"];
+const validGenderChartTypes: GenderChartType[] = ["pie", "bar", "horizontal"];
+const validBreakdownChartTypes: BreakdownChartType[] = ["pie", "bar", "horizontal"];
 
 type OverviewData = {
   total_volunteers: number;
@@ -113,16 +123,34 @@ export function Overview() {
     const savedType = window.localStorage.getItem(lastActivityChartStorageKey) as LastActivityChartType | null;
     return savedType && validLastActivityChartTypes.includes(savedType) ? savedType : "line";
   });
-  const [genderChartType, setGenderChartType] = useState<"pie" | "bar" | "horizontal">("pie");
-  const [genderStartMonth, setGenderStartMonth] = useState("");
-  const [genderEndMonth, setGenderEndMonth] = useState("");
-  const [cityChartType, setCityChartType] = useState<"vertical" | "horizontal" | "pie">("vertical");
-  const [ageGroupChartType, setAgeGroupChartType] = useState<"pie" | "bar" | "horizontal">("bar");
-  const [ethnicityChartType, setEthnicityChartType] = useState<"pie" | "bar" | "horizontal">("horizontal");
+  const [genderChartType, setGenderChartType] = useState<GenderChartType>(() => {
+    const savedType = window.localStorage.getItem(genderChartStorageKey) as GenderChartType | null;
+    return savedType && validGenderChartTypes.includes(savedType) ? savedType : "pie";
+  });
+  const [cityChartType, setCityChartType] = useState<CityChartType>(() => {
+    const savedType = window.localStorage.getItem(cityChartStorageKey) as CityChartType | null;
+    return savedType && validCityChartTypes.includes(savedType) ? savedType : "vertical";
+  });
+  const [ageGroupChartType, setAgeGroupChartType] = useState<BreakdownChartType>(() => {
+    const savedType = window.localStorage.getItem(ageGroupChartStorageKey) as BreakdownChartType | null;
+    return savedType && validBreakdownChartTypes.includes(savedType) ? savedType : "bar";
+  });
+  const [ethnicityChartType, setEthnicityChartType] = useState<BreakdownChartType>(() => {
+    const savedType = window.localStorage.getItem(ethnicityChartStorageKey) as BreakdownChartType | null;
+    return savedType && validBreakdownChartTypes.includes(savedType) ? savedType : "horizontal";
+  });
   const [dashboardRefreshToken, setDashboardRefreshToken] = useState(0);
   const [valueModalOpen, setValueModalOpen] = useState(false);
   const [lastActivityInsightLoading, setLastActivityInsightLoading] = useState(false);
   const [generatedLastActivityInsight, setGeneratedLastActivityInsight] = useState("");
+  const [cityInsightLoading, setCityInsightLoading] = useState(false);
+  const [generatedCityInsight, setGeneratedCityInsight] = useState("");
+  const [genderInsightLoading, setGenderInsightLoading] = useState(false);
+  const [generatedGenderInsight, setGeneratedGenderInsight] = useState("");
+  const [ageGroupInsightLoading, setAgeGroupInsightLoading] = useState(false);
+  const [generatedAgeGroupInsight, setGeneratedAgeGroupInsight] = useState("");
+  const [ethnicityInsightLoading, setEthnicityInsightLoading] = useState(false);
+  const [generatedEthnicityInsight, setGeneratedEthnicityInsight] = useState("");
   const [volunteerHourlyValue, setVolunteerHourlyValue] = useState(() => {
     const savedValue = window.localStorage.getItem("volunteerHourlyValue");
     const parsedValue = savedValue ? Number(savedValue) : defaultVolunteerHourlyValue;
@@ -175,15 +203,98 @@ export function Overview() {
       ]
     : [];
 
-  const filteredGenderData = genderData;
+  const sortedCityData = [...cityData].sort((firstCity, secondCity) => {
+    if (secondCity.count !== firstCity.count) {
+      return secondCity.count - firstCity.count;
+    }
+
+    return firstCity.city.localeCompare(secondCity.city);
+  });
+
+  const topCity = sortedCityData[0] ?? null;
+  const secondCity = sortedCityData[1] ?? null;
+  const cityTotalVolunteers = sortedCityData.reduce((total, item) => total + item.count, 0);
+  const topCityShare = topCity && cityTotalVolunteers > 0 ? Math.round((topCity.count / cityTotalVolunteers) * 100) : 0;
+  const cityInsightMessages = topCity
+    ? [
+        `${topCity.city} is leading this view with ${topCity.count.toLocaleString()} volunteer${topCity.count === 1 ? "" : "s"}, representing about ${topCityShare}% of the city data shown here. That makes it the first place I would look when thinking about volunteer concentration.`,
+        `The city breakdown is most concentrated in ${topCity.city}. With ${topCity.count.toLocaleString()} volunteer${topCity.count === 1 ? "" : "s"} there${secondCity ? `, compared with ${secondCity.count.toLocaleString()} in ${secondCity.city}` : ""}, it may be worth checking whether outreach, scheduling, or geography is driving that pattern.`,
+        `The standout city in this range is ${topCity.city}. It accounts for roughly ${topCityShare}% of the volunteers represented in this chart, so it is probably an important anchor location for engagement planning.`,
+        `I would call out ${topCity.city} as the strongest city signal here. ${topCity.count.toLocaleString()} volunteer${topCity.count === 1 ? " is" : "s are"} associated with that city, which can help the client understand where their volunteer base is currently clustered.`,
+        `This chart suggests the volunteer base is not evenly spread across cities. ${topCity.city} is the top contributor with ${topCity.count.toLocaleString()} volunteer${topCity.count === 1 ? "" : "s"}, so comparing it against nearby cities could reveal where future recruitment has the most room to grow.`,
+      ]
+    : [];
+
+  const sortedGenderData = [...genderData].sort((firstGender, secondGender) => {
+    if (secondGender.count !== firstGender.count) {
+      return secondGender.count - firstGender.count;
+    }
+
+    return firstGender.gender.localeCompare(secondGender.gender);
+  });
+
+  const topGender = sortedGenderData[0] ?? null;
+  const secondGender = sortedGenderData[1] ?? null;
+  const genderTotalVolunteers = sortedGenderData.reduce((total, item) => total + item.count, 0);
+  const topGenderShare = topGender && genderTotalVolunteers > 0 ? Math.round((topGender.count / genderTotalVolunteers) * 100) : 0;
+  const genderInsightMessages = topGender
+    ? [
+        `${topGender.gender} is the largest gender group in this view, with ${topGender.count.toLocaleString()} volunteer${topGender.count === 1 ? "" : "s"} or about ${topGenderShare}% of the records shown. That gives the client a quick read on the current makeup of the dataset.`,
+        `The gender breakdown is led by ${topGender.gender}. ${topGender.count.toLocaleString()} volunteer${topGender.count === 1 ? " is" : "s are"} in that group${secondGender ? `, compared with ${secondGender.count.toLocaleString()} in ${secondGender.gender}` : ""}, which is useful context when reviewing representation across the volunteer base.`,
+        `The main pattern here is that ${topGender.gender} represents the strongest category in the selected range. At roughly ${topGenderShare}% of the chart, it may be worth comparing this against the museum's expectations or recruitment goals.`,
+        `I would call out ${topGender.gender} as the clearest signal in this chart. With ${topGender.count.toLocaleString()} volunteer${topGender.count === 1 ? "" : "s"}, it is the first category to review when talking about volunteer demographics.`,
+        `This chart suggests the gender distribution is currently weighted toward ${topGender.gender}. That group accounts for about ${topGenderShare}% of the volunteers shown, so it can help frame a broader conversation about outreach and inclusion.`,
+      ]
+    : [];
+
   const ageGroupChartData = ageGroupData.map((item) => ({
     label: item.age_group,
     count: item.count,
   }));
+  const sortedAgeGroupData = [...ageGroupChartData].sort((firstGroup, secondGroup) => {
+    if (secondGroup.count !== firstGroup.count) {
+      return secondGroup.count - firstGroup.count;
+    }
+
+    return firstGroup.label.localeCompare(secondGroup.label);
+  });
+  const topAgeGroup = sortedAgeGroupData[0] ?? null;
+  const secondAgeGroup = sortedAgeGroupData[1] ?? null;
+  const ageGroupTotalVolunteers = sortedAgeGroupData.reduce((total, item) => total + item.count, 0);
+  const topAgeGroupShare = topAgeGroup && ageGroupTotalVolunteers > 0 ? Math.round((topAgeGroup.count / ageGroupTotalVolunteers) * 100) : 0;
+  const ageGroupInsightMessages = topAgeGroup
+    ? [
+        `${topAgeGroup.label} is the largest age group in this view, with ${topAgeGroup.count.toLocaleString()} volunteer${topAgeGroup.count === 1 ? "" : "s"} or about ${topAgeGroupShare}% of the records shown. That makes it a useful starting point for understanding who is most represented in the current dataset.`,
+        `The age distribution is led by ${topAgeGroup.label}. ${topAgeGroup.count.toLocaleString()} volunteer${topAgeGroup.count === 1 ? " falls" : "s fall"} into that group${secondAgeGroup ? `, compared with ${secondAgeGroup.count.toLocaleString()} in ${secondAgeGroup.label}` : ""}, which can help frame recruitment and retention conversations.`,
+        `The clearest age-group signal here is ${topAgeGroup.label}. Since that group makes up roughly ${topAgeGroupShare}% of this chart, it may be worth comparing against the museum's ideal volunteer mix.`,
+        `I would call out ${topAgeGroup.label} as the strongest age-group category. With ${topAgeGroup.count.toLocaleString()} volunteer${topAgeGroup.count === 1 ? "" : "s"}, it gives the client a quick sense of where participation is currently concentrated.`,
+        `This chart suggests the volunteer base is weighted most heavily toward ${topAgeGroup.label}. That group represents about ${topAgeGroupShare}% of the volunteers shown, which could be useful when planning outreach, scheduling, or role design.`,
+      ]
+    : [];
   const ethnicityChartData = ethnicityData.map((item) => ({
     label: item.ethnicity,
     count: item.count,
   }));
+  const sortedEthnicityData = [...ethnicityChartData].sort((firstGroup, secondGroup) => {
+    if (secondGroup.count !== firstGroup.count) {
+      return secondGroup.count - firstGroup.count;
+    }
+
+    return firstGroup.label.localeCompare(secondGroup.label);
+  });
+  const topEthnicity = sortedEthnicityData[0] ?? null;
+  const secondEthnicity = sortedEthnicityData[1] ?? null;
+  const ethnicityTotalVolunteers = sortedEthnicityData.reduce((total, item) => total + item.count, 0);
+  const topEthnicityShare = topEthnicity && ethnicityTotalVolunteers > 0 ? Math.round((topEthnicity.count / ethnicityTotalVolunteers) * 100) : 0;
+  const ethnicityInsightMessages = topEthnicity
+    ? [
+        `${topEthnicity.label} is the largest ethnicity group in this view, with ${topEthnicity.count.toLocaleString()} volunteer${topEthnicity.count === 1 ? "" : "s"} or about ${topEthnicityShare}% of the records shown. That gives the client a quick read on the current demographic mix.`,
+        `The ethnicity breakdown is led by ${topEthnicity.label}. ${topEthnicity.count.toLocaleString()} volunteer${topEthnicity.count === 1 ? " is" : "s are"} in that group${secondEthnicity ? `, compared with ${secondEthnicity.count.toLocaleString()} in ${secondEthnicity.label}` : ""}, which can help frame representation conversations.`,
+        `The clearest ethnicity signal here is ${topEthnicity.label}. Since that group makes up roughly ${topEthnicityShare}% of this chart, it may be worth comparing the data against the museum's outreach and inclusion goals.`,
+        `I would call out ${topEthnicity.label} as the strongest category in this chart. With ${topEthnicity.count.toLocaleString()} volunteer${topEthnicity.count === 1 ? "" : "s"}, it is the first group to review when discussing demographic representation.`,
+        `This chart suggests the ethnicity distribution is currently weighted toward ${topEthnicity.label}. That group represents about ${topEthnicityShare}% of the volunteers shown, which can help the client identify where future outreach may need more attention.`,
+      ]
+    : [];
   const estimatedValue = overview ? overview.hours_logged * volunteerHourlyValue : null;
   const selectedRangeParam = rangeParamByLabel[selectedRange] ?? "all_time";
 
@@ -202,6 +313,26 @@ export function Overview() {
     window.localStorage.setItem(lastActivityChartStorageKey, nextType);
   };
 
+  const updateCityChartType = (nextType: CityChartType) => {
+    setCityChartType(nextType);
+    window.localStorage.setItem(cityChartStorageKey, nextType);
+  };
+
+  const updateGenderChartType = (nextType: GenderChartType) => {
+    setGenderChartType(nextType);
+    window.localStorage.setItem(genderChartStorageKey, nextType);
+  };
+
+  const updateAgeGroupChartType = (nextType: BreakdownChartType) => {
+    setAgeGroupChartType(nextType);
+    window.localStorage.setItem(ageGroupChartStorageKey, nextType);
+  };
+
+  const updateEthnicityChartType = (nextType: BreakdownChartType) => {
+    setEthnicityChartType(nextType);
+    window.localStorage.setItem(ethnicityChartStorageKey, nextType);
+  };
+
   const generateLastActivityInsight = () => {
     if (lastActivityInsightMessages.length === 0 || lastActivityInsightLoading) {
       return;
@@ -217,10 +348,98 @@ export function Overview() {
     }, 1600);
   };
 
+  const generateCityInsight = () => {
+    if (cityInsightMessages.length === 0 || cityInsightLoading) {
+      return;
+    }
+
+    setGeneratedCityInsight("");
+    setCityInsightLoading(true);
+
+    window.setTimeout(() => {
+      const randomIndex = Math.floor(Math.random() * cityInsightMessages.length);
+      setGeneratedCityInsight(cityInsightMessages[randomIndex]);
+      setCityInsightLoading(false);
+    }, 1600);
+  };
+
+  const generateGenderInsight = () => {
+    if (genderInsightMessages.length === 0 || genderInsightLoading) {
+      return;
+    }
+
+    setGeneratedGenderInsight("");
+    setGenderInsightLoading(true);
+
+    window.setTimeout(() => {
+      const randomIndex = Math.floor(Math.random() * genderInsightMessages.length);
+      setGeneratedGenderInsight(genderInsightMessages[randomIndex]);
+      setGenderInsightLoading(false);
+    }, 1600);
+  };
+
+  const generateAgeGroupInsight = () => {
+    if (ageGroupInsightMessages.length === 0 || ageGroupInsightLoading) {
+      return;
+    }
+
+    setGeneratedAgeGroupInsight("");
+    setAgeGroupInsightLoading(true);
+
+    window.setTimeout(() => {
+      const randomIndex = Math.floor(Math.random() * ageGroupInsightMessages.length);
+      setGeneratedAgeGroupInsight(ageGroupInsightMessages[randomIndex]);
+      setAgeGroupInsightLoading(false);
+    }, 1600);
+  };
+
+  const generateEthnicityInsight = () => {
+    if (ethnicityInsightMessages.length === 0 || ethnicityInsightLoading) {
+      return;
+    }
+
+    setGeneratedEthnicityInsight("");
+    setEthnicityInsightLoading(true);
+
+    window.setTimeout(() => {
+      const randomIndex = Math.floor(Math.random() * ethnicityInsightMessages.length);
+      setGeneratedEthnicityInsight(ethnicityInsightMessages[randomIndex]);
+      setEthnicityInsightLoading(false);
+    }, 1600);
+  };
+
   useEffect(() => {
     setGeneratedLastActivityInsight("");
     setLastActivityInsightLoading(false);
+    setGeneratedCityInsight("");
+    setCityInsightLoading(false);
+    setGeneratedGenderInsight("");
+    setGenderInsightLoading(false);
+    setGeneratedAgeGroupInsight("");
+    setAgeGroupInsightLoading(false);
+    setGeneratedEthnicityInsight("");
+    setEthnicityInsightLoading(false);
   }, [selectedRangeParam, lastActivityData]);
+
+  useEffect(() => {
+    setGeneratedCityInsight("");
+    setCityInsightLoading(false);
+  }, [selectedRangeParam, cityData]);
+
+  useEffect(() => {
+    setGeneratedGenderInsight("");
+    setGenderInsightLoading(false);
+  }, [selectedRangeParam, genderData]);
+
+  useEffect(() => {
+    setGeneratedAgeGroupInsight("");
+    setAgeGroupInsightLoading(false);
+  }, [selectedRangeParam, ageGroupData]);
+
+  useEffect(() => {
+    setGeneratedEthnicityInsight("");
+    setEthnicityInsightLoading(false);
+  }, [selectedRangeParam, ethnicityData]);
 
   useEffect(() => {
     async function fetchDashboardData() {
@@ -244,7 +463,7 @@ export function Overview() {
         const lineChartData: LastActivityPoint[] = await lineChartResponse.json();
         setLastActivityData(lineChartData);
 
-        const genderChartResponse = await apiFetch(`/api/charts/volunteers-by-gender?${rangeQuery}&start=${genderStartMonth}&end=${genderEndMonth}`);
+        const genderChartResponse = await apiFetch(`/api/charts/volunteers-by-gender?${rangeQuery}`);
 
         await requireOk(genderChartResponse, "Failed to fetch gender chart data.");
 
@@ -284,7 +503,7 @@ export function Overview() {
     }
 
     fetchDashboardData();
-  }, [genderStartMonth, genderEndMonth, selectedRangeParam, dashboardRefreshToken]);
+  }, [selectedRangeParam, dashboardRefreshToken]);
 
   return (
     <div className="space-y-6">
@@ -498,7 +717,7 @@ export function Overview() {
                   ) : (
                     <Sparkles className="mr-2 h-4 w-4" />
                   )}
-                  {lastActivityInsightLoading ? "Generating..." : "Generate Insight"}
+                  {lastActivityInsightLoading ? "Generating..." : "AI"}
                 </button>
               </div>
             )}
@@ -513,98 +732,136 @@ export function Overview() {
 
           <ChartPanel
             title="Volunteers by City"
-            description="Number of volunteers grouped by city from the volunteers table."
+            description="Volunteer distribution grouped by city from the current dataset."
             loading={loading}
-            isEmpty={cityData.length === 0}
+            isEmpty={sortedCityData.length === 0}
             emptyMessage="No city data is available yet."
             controls={(
-              <div className="mt-4 flex flex-col">
-              <label className="mb-1 text-sm font-medium text-slate-700">Chart Type</label>
-              <select
-                value={cityChartType}
-                onChange={(event) => setCityChartType(event.target.value as "vertical" | "horizontal" | "pie")}
-                className="w-full max-w-xs rounded-md border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm"
-              >
-                <option value="vertical">Column Chart</option>
-                <option value="horizontal">Horizontal Bar Chart</option>
-                <option value="pie">Pie Chart</option>
-              </select>
+              <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+                <div className="flex max-w-xs flex-col">
+                  <label className="mb-1 text-sm font-medium text-slate-700">Chart Type</label>
+                  <select
+                    value={cityChartType}
+                    onChange={(event) => updateCityChartType(event.target.value as CityChartType)}
+                    className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm"
+                  >
+                    <option value="vertical">Column Chart</option>
+                    <option value="horizontal">Horizontal Bar Chart</option>
+                    <option value="pie">Pie Chart</option>
+                  </select>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={generateCityInsight}
+                  disabled={sortedCityData.length === 0 || cityInsightLoading}
+                  className="inline-flex items-center justify-center rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-medium text-emerald-700 transition hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {cityInsightLoading ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <Sparkles className="mr-2 h-4 w-4" />
+                  )}
+                  {cityInsightLoading ? "Generating..." : "AI"}
+                </button>
               </div>
             )}
           >
-
-            <VolunteersByCityBarChart data={cityData} chartType={cityChartType} />
+            {generatedCityInsight && (
+              <p className="mt-5 rounded-lg border border-emerald-100 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+                {generatedCityInsight}
+              </p>
+            )}
+            <VolunteersByCityBarChart data={sortedCityData} chartType={cityChartType} />
           </ChartPanel>
 
           <ChartPanel
             title="Volunteers by Gender"
-            description="Gender breakdown of volunteers from the volunteers table."
+            description="Volunteer distribution grouped by gender from the current dataset."
             loading={loading}
-            isEmpty={filteredGenderData.length === 0}
+            isEmpty={sortedGenderData.length === 0}
             emptyMessage="No gender data is available for the current filters."
             controls={(
-              <div className="mt-4 flex flex-col gap-4 md:flex-row md:items-end">
-              <div className="flex flex-col">
-                <label className="mb-1 text-sm font-medium text-slate-700">Chart Type</label>
-                <select
-                  value={genderChartType}
-                  onChange={(event) => setGenderChartType(event.target.value as "pie" | "bar" | "horizontal")}
-                  className="w-full max-w-xs rounded-md border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm"
+              <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+                <div className="flex max-w-xs flex-col">
+                  <label className="mb-1 text-sm font-medium text-slate-700">Chart Type</label>
+                  <select
+                    value={genderChartType}
+                    onChange={(event) => updateGenderChartType(event.target.value as GenderChartType)}
+                    className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm"
+                  >
+                    <option value="pie">Pie Chart</option>
+                    <option value="bar">Bar Chart</option>
+                    <option value="horizontal">Horizontal Bar Chart</option>
+                  </select>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={generateGenderInsight}
+                  disabled={sortedGenderData.length === 0 || genderInsightLoading}
+                  className="inline-flex items-center justify-center rounded-lg border border-indigo-200 bg-indigo-50 px-4 py-2 text-sm font-medium text-indigo-700 transition hover:bg-indigo-100 disabled:cursor-not-allowed disabled:opacity-60"
                 >
-                  <option value="pie">Pie Chart</option>
-                  <option value="bar">Bar / Column Chart</option>
-                  <option value="horizontal">Horizontal Bar Chart</option>
-                </select>
-              </div>
-
-              <div className="flex flex-col">
-                <label className="mb-1 text-sm font-medium text-slate-700">Start Month</label>
-                <input
-                  type="month"
-                  value={genderStartMonth}
-                  onChange={(event) => setGenderStartMonth(event.target.value)}
-                  className="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm"
-                />
-              </div>
-
-              <div className="flex flex-col">
-                <label className="mb-1 text-sm font-medium text-slate-700">End Month</label>
-                <input
-                  type="month"
-                  value={genderEndMonth}
-                  onChange={(event) => setGenderEndMonth(event.target.value)}
-                  className="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm"
-                />
-              </div>
+                  {genderInsightLoading ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <Sparkles className="mr-2 h-4 w-4" />
+                  )}
+                  {genderInsightLoading ? "Generating..." : "AI"}
+                </button>
               </div>
             )}
           >
-
-            <VolunteersByGenderPieChart data={filteredGenderData} chartType={genderChartType} />
+            {generatedGenderInsight && (
+              <p className="mt-5 rounded-lg border border-indigo-100 bg-indigo-50 px-4 py-3 text-sm text-indigo-800">
+                {generatedGenderInsight}
+              </p>
+            )}
+            <VolunteersByGenderPieChart data={sortedGenderData} chartType={genderChartType} />
           </ChartPanel>
 
           <ChartPanel
             title="Volunteers by Age Group"
-            description="Age group breakdown of volunteers from the volunteers table."
+            description="Volunteer distribution grouped by age range from the current dataset."
             loading={loading}
             isEmpty={ageGroupChartData.length === 0}
             emptyMessage="No age group data is available yet."
             controls={(
-              <div className="mt-4 flex flex-col">
-              <label className="mb-1 text-sm font-medium text-slate-700">Chart Type</label>
-              <select
-                value={ageGroupChartType}
-                onChange={(event) => setAgeGroupChartType(event.target.value as "pie" | "bar" | "horizontal")}
-                className="w-full max-w-xs rounded-md border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm"
-              >
-                <option value="bar">Bar / Column Chart</option>
-                <option value="horizontal">Horizontal Bar Chart</option>
-                <option value="pie">Pie Chart</option>
-              </select>
+              <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+                <div className="flex max-w-xs flex-col">
+                  <label className="mb-1 text-sm font-medium text-slate-700">Chart Type</label>
+                  <select
+                    value={ageGroupChartType}
+                    onChange={(event) => updateAgeGroupChartType(event.target.value as BreakdownChartType)}
+                    className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm"
+                  >
+                    <option value="bar">Bar Chart</option>
+                    <option value="horizontal">Horizontal Bar Chart</option>
+                    <option value="pie">Pie Chart</option>
+                  </select>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={generateAgeGroupInsight}
+                  disabled={ageGroupChartData.length === 0 || ageGroupInsightLoading}
+                  className="inline-flex items-center justify-center rounded-lg border border-purple-200 bg-purple-50 px-4 py-2 text-sm font-medium text-purple-700 transition hover:bg-purple-100 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {ageGroupInsightLoading ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <Sparkles className="mr-2 h-4 w-4" />
+                  )}
+                  {ageGroupInsightLoading ? "Generating..." : "AI"}
+                </button>
               </div>
             )}
           >
-
+            {generatedAgeGroupInsight && (
+              <p className="mt-5 rounded-lg border border-purple-100 bg-purple-50 px-4 py-3 text-sm text-purple-800">
+                {generatedAgeGroupInsight}
+              </p>
+            )}
             <VolunteerBreakdownChart
               data={ageGroupChartData}
               chartType={ageGroupChartType}
@@ -614,26 +871,46 @@ export function Overview() {
 
           <ChartPanel
             title="Volunteers by Ethnicity"
-            description="Ethnicity breakdown of volunteers from the volunteers table."
+            description="Volunteer distribution grouped by ethnicity from the current dataset."
             loading={loading}
             isEmpty={ethnicityChartData.length === 0}
             emptyMessage="No ethnicity data is available yet."
             controls={(
-              <div className="mt-4 flex flex-col">
-              <label className="mb-1 text-sm font-medium text-slate-700">Chart Type</label>
-              <select
-                value={ethnicityChartType}
-                onChange={(event) => setEthnicityChartType(event.target.value as "pie" | "bar" | "horizontal")}
-                className="w-full max-w-xs rounded-md border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm"
-              >
-                <option value="horizontal">Horizontal Bar Chart</option>
-                <option value="bar">Bar / Column Chart</option>
-                <option value="pie">Pie Chart</option>
-              </select>
+              <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+                <div className="flex max-w-xs flex-col">
+                  <label className="mb-1 text-sm font-medium text-slate-700">Chart Type</label>
+                  <select
+                    value={ethnicityChartType}
+                    onChange={(event) => updateEthnicityChartType(event.target.value as BreakdownChartType)}
+                    className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm"
+                  >
+                    <option value="horizontal">Horizontal Bar Chart</option>
+                    <option value="bar">Bar Chart</option>
+                    <option value="pie">Pie Chart</option>
+                  </select>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={generateEthnicityInsight}
+                  disabled={ethnicityChartData.length === 0 || ethnicityInsightLoading}
+                  className="inline-flex items-center justify-center rounded-lg border border-cyan-200 bg-cyan-50 px-4 py-2 text-sm font-medium text-cyan-700 transition hover:bg-cyan-100 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {ethnicityInsightLoading ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <Sparkles className="mr-2 h-4 w-4" />
+                  )}
+                  {ethnicityInsightLoading ? "Generating..." : "AI"}
+                </button>
               </div>
             )}
           >
-
+            {generatedEthnicityInsight && (
+              <p className="mt-5 rounded-lg border border-cyan-100 bg-cyan-50 px-4 py-3 text-sm text-cyan-800">
+                {generatedEthnicityInsight}
+              </p>
+            )}
             <VolunteerBreakdownChart data={ethnicityChartData} chartType={ethnicityChartType} />
           </ChartPanel>
         </div>

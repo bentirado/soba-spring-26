@@ -211,8 +211,8 @@ async def upload_volunteers(
     for index, row in enumerate(payload.rows, start=1):
         volunteers_to_insert.append(
             Volunteer(
-                first_name="Spreadsheet",
-                last_name=f"Row {index}",
+                first_name="Volunteer",
+                last_name=f"#{index:03d}",
                 city=row.City or None,
                 state=(row.State or "OK").strip().upper(),
                 zip=row.Zip or None,

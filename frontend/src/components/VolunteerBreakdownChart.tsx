@@ -32,6 +32,11 @@ export default function VolunteerBreakdownChart({
   chartType,
   sortMode = "count_desc",
 }: VolunteerBreakdownChartProps) {
+  const tooltipFormatter = (value: number) => [
+    `${value.toLocaleString()} volunteer${value === 1 ? "" : "s"}`,
+    "Volunteers",
+  ];
+
   const sortedData =
     sortMode === "preserve"
       ? data
@@ -53,7 +58,7 @@ export default function VolunteerBreakdownChart({
                 <Cell key={`cell-${entry.label}`} fill={COLORS[index % COLORS.length]} />
               ))}
             </Pie>
-            <Tooltip />
+            <Tooltip formatter={tooltipFormatter} />
             <Legend />
           </PieChart>
         ) : chartType === "bar" ? (
@@ -61,7 +66,7 @@ export default function VolunteerBreakdownChart({
             <CartesianGrid strokeDasharray="3 3" />
             <XAxis dataKey="label" />
             <YAxis allowDecimals={false} />
-            <Tooltip />
+            <Tooltip formatter={tooltipFormatter} />
             <Bar dataKey="count" fill="#2563eb" radius={[6, 6, 0, 0]} />
           </BarChart>
         ) : (
@@ -69,7 +74,7 @@ export default function VolunteerBreakdownChart({
             <CartesianGrid strokeDasharray="3 3" />
             <XAxis type="number" allowDecimals={false} />
             <YAxis type="category" dataKey="label" width={140} />
-            <Tooltip />
+            <Tooltip formatter={tooltipFormatter} />
             <Bar dataKey="count" fill="#2563eb" radius={[0, 6, 6, 0]} />
           </BarChart>
         )}
