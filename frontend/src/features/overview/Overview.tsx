@@ -30,6 +30,9 @@ const validLastActivityChartTypes: LastActivityChartType[] = ["bar", "line", "ar
 const validCityChartTypes: CityChartType[] = ["vertical", "horizontal", "pie"];
 const validGenderChartTypes: GenderChartType[] = ["pie", "bar", "horizontal"];
 const validBreakdownChartTypes: BreakdownChartType[] = ["pie", "bar", "horizontal"];
+const reportMonthLabels = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+const reportWeekdayLabels = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+const reportAgeGroupOrder = ["Under 18", "18-24", "25-34", "35-44", "45-54", "55+", "Unknown"];
 
 type OverviewData = {
   total_volunteers: number;
@@ -63,6 +66,26 @@ type EthnicityBreakdownPoint = {
   count: number;
 };
 
+type ReportVolunteer = {
+  id: number;
+  first_name: string;
+  last_name: string;
+  email: string | null;
+  phone?: string | null;
+  city: string | null;
+  state: string;
+  zip: string | null;
+  age: number | null;
+  age_group: string | null;
+  gender: string | null;
+  ethnicity: string | null;
+  hispanic_latino: string | null;
+  dietary_restrictions: string;
+  joined_date?: string | null;
+  last_activity: string | null;
+  life_hours: number | null;
+};
+
 type ChartPanelProps = {
   title: string;
   description: string;
@@ -72,6 +95,94 @@ type ChartPanelProps = {
   controls?: ReactNode;
   children: ReactNode;
 };
+
+function escapeHtml(value: string | number) {
+  return String(value)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
+
+function downloadHtmlReport(fileName: string, html: string) {
+  const blob = new Blob([html], { type: "text/html;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = fileName;
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
+function renderReportRows(items: Array<Record<string, string | number>>) {
+  if (items.length === 0) {
+    return `<p class="muted">No data available.</p>`;
+  }
+
+  const headers = Object.keys(items[0]);
+
+  return `
+    <table>
+      <thead>
+        <tr>${headers.map((header) => `<th>${escapeHtml(header)}</th>`).join("")}</tr>
+      </thead>
+      <tbody>
+        ${items
+          .map((item) => `
+            <tr>
+              ${headers.map((header) => `<td>${escapeHtml(item[header])}</td>`).join("")}
+            </tr>
+          `)
+          .join("")}
+      </tbody>
+    </table>
+  `;
+}
+
+function getReportVolunteerDisplayName(volunteer: ReportVolunteer) {
+  if (volunteer.first_name === "Spreadsheet" && volunteer.last_name.startsWith("Row ")) {
+    const rowNumber = Number(volunteer.last_name.replace("Row ", ""));
+    return Number.isFinite(rowNumber) ? `Volunteer #${rowNumber.toString().padStart(3, "0")}` : "Volunteer";
+  }
+
+  return `${volunteer.first_name} ${volunteer.last_name}`.trim();
+}
+
+function getReportMonthIndex(value: string | null) {
+  if (!value) return null;
+  const date = new Date(`${value}T00:00:00`);
+  return Number.isNaN(date.getTime()) ? null : date.getMonth();
+}
+
+function getReportWeekdayIndex(value: string | null) {
+  if (!value) return null;
+  const date = new Date(`${value}T00:00:00`);
+  return Number.isNaN(date.getTime()) ? null : date.getDay();
+}
+
+function formatReportDate(value: string | null) {
+  if (!value) return "-";
+  const date = new Date(`${value}T00:00:00`);
+  if (Number.isNaN(date.getTime())) return "-";
+  return date.toLocaleDateString([], { month: "short", day: "numeric", year: "numeric" });
+}
+
+function hasReportValue(value: string | number | null | undefined) {
+  if (typeof value === "number") return Number.isFinite(value);
+  return Boolean(value?.trim());
+}
+
+function getReportAgeGroup(volunteer: ReportVolunteer) {
+  if (volunteer.age_group) return volunteer.age_group;
+  if (volunteer.age == null) return "Unknown";
+  if (volunteer.age < 18) return "Under 18";
+  if (volunteer.age <= 24) return "18-24";
+  if (volunteer.age <= 34) return "25-34";
+  if (volunteer.age <= 44) return "35-44";
+  if (volunteer.age <= 54) return "45-54";
+  return "55+";
+}
 
 function ChartPanel({
   title,
@@ -151,6 +262,7 @@ export function Overview() {
   const [generatedAgeGroupInsight, setGeneratedAgeGroupInsight] = useState("");
   const [ethnicityInsightLoading, setEthnicityInsightLoading] = useState(false);
   const [generatedEthnicityInsight, setGeneratedEthnicityInsight] = useState("");
+  const [reportGenerating, setReportGenerating] = useState(false);
   const [volunteerHourlyValue, setVolunteerHourlyValue] = useState(() => {
     const savedValue = window.localStorage.getItem("volunteerHourlyValue");
     const parsedValue = savedValue ? Number(savedValue) : defaultVolunteerHourlyValue;
@@ -160,10 +272,6 @@ export function Overview() {
 
   const refreshDashboard = () => {
     setDashboardRefreshToken((currentValue) => currentValue + 1);
-  };
-
-  const handleGenerateReportClick = () => {
-    console.log("Generate report clicked");
   };
 
   useEffect(() => {
@@ -297,6 +405,268 @@ export function Overview() {
     : [];
   const estimatedValue = overview ? overview.hours_logged * volunteerHourlyValue : null;
   const selectedRangeParam = rangeParamByLabel[selectedRange] ?? "all_time";
+
+  const handleGenerateReportClick = async () => {
+    if (!overview || loading || reportGenerating) {
+      return;
+    }
+
+    try {
+      setReportGenerating(true);
+      setError("");
+
+      const volunteersResponse = await apiFetch("/api/volunteers");
+      await requireOk(volunteersResponse, "Failed to fetch volunteer dataset for report.");
+      const reportVolunteers = (await volunteersResponse.json()) as ReportVolunteer[];
+
+      const generatedAt = new Date();
+      const generatedDate = generatedAt.toLocaleDateString([], { month: "long", day: "numeric", year: "numeric" });
+      const generatedTime = generatedAt.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+      const fileDate = generatedAt.toISOString().slice(0, 10);
+      const currentYear = generatedAt.getFullYear();
+      const previousYear = currentYear - 1;
+      const totalReportHours = reportVolunteers.reduce((sum, volunteer) => sum + (volunteer.life_hours ?? 0), 0);
+      const averageReportHours = reportVolunteers.length ? totalReportHours / reportVolunteers.length : 0;
+      const volunteersWithHours = reportVolunteers.filter((volunteer) => (volunteer.life_hours ?? 0) > 0).length;
+      const hundredHourVolunteers = reportVolunteers.filter((volunteer) => (volunteer.life_hours ?? 0) >= 100).length;
+      const fiftyHourVolunteers = reportVolunteers.filter((volunteer) => (volunteer.life_hours ?? 0) >= 50).length;
+      const tenHourVolunteers = reportVolunteers.filter((volunteer) => (volunteer.life_hours ?? 0) >= 10).length;
+      const mostRecentActivity = reportVolunteers.reduce<string | null>((latestDate, volunteer) => {
+        if (!volunteer.last_activity) return latestDate;
+        if (!latestDate) return volunteer.last_activity;
+        return volunteer.last_activity > latestDate ? volunteer.last_activity : latestDate;
+      }, null);
+      const completionFields = reportVolunteers.flatMap((volunteer) => [
+        volunteer.city,
+        volunteer.state,
+        volunteer.zip,
+        volunteer.age,
+        volunteer.gender,
+        volunteer.ethnicity,
+        volunteer.life_hours,
+        volunteer.last_activity,
+      ]);
+      const completionPercent = completionFields.length
+        ? Math.round((completionFields.filter(hasReportValue).length / completionFields.length) * 100)
+        : 0;
+      const reportActivityByMonth = reportMonthLabels.map((monthLabel, monthIndex) => {
+        const matchingVolunteers = reportVolunteers.filter((volunteer) => getReportMonthIndex(volunteer.last_activity) === monthIndex);
+        return {
+          Month: monthLabel,
+          Volunteers: matchingVolunteers.length,
+          Hours: Number(matchingVolunteers.reduce((sum, volunteer) => sum + (volunteer.life_hours ?? 0), 0).toFixed(1)),
+        };
+      });
+      const reportYearComparison = reportMonthLabels.map((monthLabel, monthIndex) => {
+        const currentYearHours = reportVolunteers.reduce((sum, volunteer) => {
+          if (!volunteer.last_activity) return sum;
+          const activityDate = new Date(`${volunteer.last_activity}T00:00:00`);
+          if (Number.isNaN(activityDate.getTime())) return sum;
+          return activityDate.getFullYear() === currentYear && activityDate.getMonth() === monthIndex
+            ? sum + (volunteer.life_hours ?? 0)
+            : sum;
+        }, 0);
+        const previousYearHours = reportVolunteers.reduce((sum, volunteer) => {
+          if (!volunteer.last_activity) return sum;
+          const activityDate = new Date(`${volunteer.last_activity}T00:00:00`);
+          if (Number.isNaN(activityDate.getTime())) return sum;
+          return activityDate.getFullYear() === previousYear && activityDate.getMonth() === monthIndex
+            ? sum + (volunteer.life_hours ?? 0)
+            : sum;
+        }, 0);
+
+        return {
+          Month: monthLabel,
+          [currentYear.toString()]: Number(currentYearHours.toFixed(1)),
+          [previousYear.toString()]: Number(previousYearHours.toFixed(1)),
+        };
+      });
+      const reportWeekdayData = reportWeekdayLabels.map((dayLabel, dayIndex) => {
+        const matchingVolunteers = reportVolunteers.filter((volunteer) => getReportWeekdayIndex(volunteer.last_activity) === dayIndex);
+        const participation = reportVolunteers.length ? Math.round((matchingVolunteers.length / reportVolunteers.length) * 100) : 0;
+
+        return {
+          Day: dayLabel,
+          Volunteers: matchingVolunteers.length,
+          Hours: Number(matchingVolunteers.reduce((sum, volunteer) => sum + (volunteer.life_hours ?? 0), 0).toFixed(1)),
+          "Participation %": participation,
+        };
+      });
+      const reportAgeDistribution = reportAgeGroupOrder.map((ageGroup) => ({
+        "Age Group": ageGroup,
+        Volunteers: reportVolunteers.filter((volunteer) => getReportAgeGroup(volunteer) === ageGroup).length,
+      }));
+      const rankedReportVolunteers = reportVolunteers
+        .filter((volunteer) => (volunteer.life_hours ?? 0) > 0)
+        .sort((firstVolunteer, secondVolunteer) => (secondVolunteer.life_hours ?? 0) - (firstVolunteer.life_hours ?? 0))
+        .map((volunteer, index) => {
+          const hours = volunteer.life_hours ?? 0;
+          return {
+            ...volunteer,
+            Rank: index + 1,
+            Volunteer: getReportVolunteerDisplayName(volunteer),
+            Location: [volunteer.city, volunteer.state].filter(Boolean).join(", ") || "-",
+            Hours: Number(hours.toFixed(1)),
+            "Hour Share": totalReportHours ? `${Math.round((hours / totalReportHours) * 100)}%` : "0%",
+          };
+        });
+      const contributionTiers = [
+        { Tier: "100+ hrs", Min: 100, Max: Number.POSITIVE_INFINITY },
+        { Tier: "50-99 hrs", Min: 50, Max: 100 },
+        { Tier: "10-49 hrs", Min: 10, Max: 50 },
+        { Tier: "1-9 hrs", Min: 1, Max: 10 },
+        { Tier: "0 hrs", Min: 0, Max: 1 },
+      ].map((tier) => ({
+        Tier: tier.Tier,
+        Volunteers: reportVolunteers.filter((volunteer) => {
+          const hours = volunteer.life_hours ?? 0;
+          return hours >= tier.Min && hours < tier.Max;
+        }).length,
+      }));
+      const topContributor = rankedReportVolunteers[0] ?? null;
+      const reportHighlights = [
+        busiestLastActivityMonth
+          ? `Recent activity is most concentrated in ${busiestLastActivityMonth.month}, with ${busiestLastActivityMonth.count.toLocaleString()} volunteer${busiestLastActivityMonth.count === 1 ? "" : "s"}.`
+          : "No recent-activity month data is available for this range.",
+        topCity
+          ? `${topCity.city} is the leading city, representing about ${topCityShare}% of city records in this range.`
+          : "No city breakdown is available for this range.",
+        topGender
+          ? `${topGender.gender} is the largest gender category at about ${topGenderShare}% of gender records.`
+          : "No gender breakdown is available for this range.",
+        topAgeGroup
+          ? `${topAgeGroup.label} is the largest age group at about ${topAgeGroupShare}% of age-group records.`
+          : "No age-group breakdown is available for this range.",
+        topEthnicity
+          ? `${topEthnicity.label} is the largest ethnicity category at about ${topEthnicityShare}% of ethnicity records.`
+          : "No ethnicity breakdown is available for this range.",
+        topContributor
+          ? `${topContributor.Volunteer} leads recognition with ${topContributor.Hours.toLocaleString()} lifetime hours.`
+          : "No volunteer records currently have lifetime hours for recognition ranking.",
+        `The active uploaded dataset is ${completionPercent}% complete across key report fields.`,
+      ];
+      const reportHtml = `<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Science Museum Oklahoma Comprehensive Volunteer Report</title>
+    <style>
+      body { color: #0f172a; font-family: Arial, sans-serif; margin: 40px; line-height: 1.45; }
+      h1 { font-size: 28px; margin: 0 0 4px; }
+      h2 { border-bottom: 1px solid #e2e8f0; font-size: 18px; margin: 28px 0 12px; padding-bottom: 8px; }
+      h3 { font-size: 15px; margin: 22px 0 8px; }
+      .muted { color: #64748b; }
+      .summary { display: grid; gap: 12px; grid-template-columns: repeat(4, 1fr); margin: 24px 0; }
+      .card { border: 1px solid #e2e8f0; border-radius: 12px; padding: 14px; }
+      .label { color: #64748b; font-size: 12px; margin-bottom: 6px; }
+      .value { font-size: 20px; font-weight: 700; }
+      ul { padding-left: 20px; }
+      table { border-collapse: collapse; margin-top: 8px; width: 100%; }
+      th, td { border-bottom: 1px solid #e2e8f0; padding: 9px 8px; text-align: left; }
+      th { background: #f8fafc; color: #475569; font-size: 12px; text-transform: uppercase; }
+      @media print {
+        body { margin: 24px; }
+        .summary { grid-template-columns: repeat(2, 1fr); }
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Science Museum Oklahoma Comprehensive Volunteer Report</h1>
+    <p class="muted">Generated ${escapeHtml(generatedDate)} at ${escapeHtml(generatedTime)}. Overview range: ${escapeHtml(selectedRange)}. Volunteer and recognition sections use the full active uploaded spreadsheet.</p>
+
+    <section class="summary">
+      <div class="card"><div class="label">Total Volunteers</div><div class="value">${overview.total_volunteers.toLocaleString()}</div></div>
+      <div class="card"><div class="label">Hours Logged</div><div class="value">${overview.hours_logged.toLocaleString()}</div></div>
+      <div class="card"><div class="label">Average Age</div><div class="value">${overview.average_age.toLocaleString()}</div></div>
+      <div class="card"><div class="label">Cities Represented</div><div class="value">${overview.cities_represented.toLocaleString()}</div></div>
+      <div class="card"><div class="label">Estimated Value</div><div class="value">${estimatedValue !== null ? `$${Math.round(estimatedValue).toLocaleString()}` : "-"}</div></div>
+      <div class="card"><div class="label">Dataset Completion</div><div class="value">${completionPercent}%</div></div>
+      <div class="card"><div class="label">Volunteers With Hours</div><div class="value">${volunteersWithHours.toLocaleString()}</div></div>
+      <div class="card"><div class="label">Latest Activity</div><div class="value">${escapeHtml(formatReportDate(mostRecentActivity))}</div></div>
+    </section>
+
+    <h2>Highlights</h2>
+    <ul>${reportHighlights.map((highlight) => `<li>${escapeHtml(highlight)}</li>`).join("")}</ul>
+
+    <h2>Overview Dashboard Breakdown</h2>
+    <h3>Recent Volunteer Activity</h3>
+    ${renderReportRows(chronologicalLastActivityData.map((item) => ({ Month: item.month, Volunteers: item.count })))}
+
+    <h3>Top Cities</h3>
+    ${renderReportRows(sortedCityData.slice(0, 10).map((item) => ({ City: item.city, Volunteers: item.count })))}
+
+    <h3>Gender Breakdown</h3>
+    ${renderReportRows(sortedGenderData.map((item) => ({ Gender: item.gender, Volunteers: item.count })))}
+
+    <h3>Age Group Breakdown</h3>
+    ${renderReportRows(ageGroupChartData.map((item) => ({ "Age Group": item.label, Volunteers: item.count })))}
+
+    <h3>Ethnicity Breakdown</h3>
+    ${renderReportRows(sortedEthnicityData.map((item) => ({ Ethnicity: item.label, Volunteers: item.count })))}
+
+    <h2>Volunteer Dataset Explorer</h2>
+    ${renderReportRows([
+      { Metric: "Volunteer Count", Value: reportVolunteers.length.toLocaleString() },
+      { Metric: "Total Hours", Value: totalReportHours.toLocaleString(undefined, { maximumFractionDigits: 1 }) },
+      { Metric: "Average Hours Per Volunteer", Value: `${averageReportHours.toFixed(1)} hrs` },
+      { Metric: "Data Completion", Value: `${completionPercent}%` },
+      { Metric: "Latest Activity", Value: formatReportDate(mostRecentActivity) },
+    ])}
+
+    <h3>Last Activity by Month</h3>
+    ${renderReportRows(reportActivityByMonth)}
+
+    <h3>Activity Hours by Year</h3>
+    ${renderReportRows(reportYearComparison)}
+
+    <h3>Last Activity by Weekday</h3>
+    ${renderReportRows(reportWeekdayData)}
+
+    <h3>Age Distribution</h3>
+    ${renderReportRows(reportAgeDistribution)}
+
+    <h2>Recognition and Contribution Analytics</h2>
+    ${renderReportRows([
+      { Metric: "Total Hours", Value: totalReportHours.toLocaleString(undefined, { maximumFractionDigits: 1 }) },
+      { Metric: "Volunteers With Hours", Value: volunteersWithHours.toLocaleString() },
+      { Metric: "Average Hours", Value: `${averageReportHours.toFixed(1)} hrs` },
+      { Metric: "100+ Hour Volunteers", Value: hundredHourVolunteers.toLocaleString() },
+      { Metric: "50+ Hour Volunteers", Value: fiftyHourVolunteers.toLocaleString() },
+      { Metric: "10+ Hour Volunteers", Value: tenHourVolunteers.toLocaleString() },
+    ])}
+
+    <h3>Top Hour Contributors</h3>
+    ${renderReportRows(rankedReportVolunteers.slice(0, 10).map((volunteer) => ({
+      Rank: volunteer.Rank,
+      Volunteer: volunteer.Volunteer,
+      Location: volunteer.Location,
+      Hours: volunteer.Hours,
+      "Hour Share": volunteer["Hour Share"],
+    })))}
+
+    <h3>Contribution Tiers</h3>
+    ${renderReportRows(contributionTiers)}
+
+    <h2>Report Notes</h2>
+    <ul>
+      <li>${escapeHtml("Volunteer and recognition analytics are generated from the active uploaded spreadsheet dataset.")}</li>
+      <li>${escapeHtml("Volunteer labels are anonymized because the current spreadsheet does not include names.")}</li>
+      <li>${escapeHtml(`Estimated business value uses $${volunteerHourlyValue.toLocaleString()}/hr. Default based on Oklahoma volunteer time valuation.`)}</li>
+    </ul>
+  </body>
+</html>`;
+
+      downloadHtmlReport(`smo-volunteer-dashboard-report-${selectedRangeParam}-${fileDate}.html`, reportHtml);
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? `Could not generate report: ${err.message}`
+          : "Could not generate report.",
+      );
+    } finally {
+      setReportGenerating(false);
+    }
+  };
 
   const saveHourlyValue = () => {
     const nextValue = Number(hourlyValueInput);
@@ -550,10 +920,11 @@ export function Overview() {
             {/* Generate Report */}
             <button
               onClick={handleGenerateReportClick}
-              className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-blue-700"
+              disabled={loading || !overview || reportGenerating}
+              className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-300"
             >
-              <FileText className="h-4 w-4" />
-              Generate Report
+              {reportGenerating ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileText className="h-4 w-4" />}
+              {reportGenerating ? "Generating..." : "Generate Report"}
             </button>
 
           </div>
@@ -590,15 +961,16 @@ export function Overview() {
         )}
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
-          <DashboardStatCard title="Total Volunteers" value={overview?.total_volunteers ?? "--"} icon={Users} iconColor="bg-blue-600" />
-          <DashboardStatCard title="Hours Logged" value={overview?.hours_logged ?? "--"} icon={Clock3} iconColor="bg-orange-500" />
-          <DashboardStatCard title="Average Age" value={overview?.average_age ?? "--"} icon={Cake} iconColor="bg-purple-600" />
-          <DashboardStatCard title="Cities Represented" value={overview?.cities_represented ?? "--"} icon={MapPin} iconColor="bg-green-600" />
+          <DashboardStatCard title="Total Volunteers" value={overview?.total_volunteers ?? "--"} icon={Users} iconColor="text-blue-600" iconBg="bg-blue-50" />
+          <DashboardStatCard title="Hours Logged" value={overview?.hours_logged ?? "--"} icon={Clock3} iconColor="text-orange-500" iconBg="bg-orange-50" />
+          <DashboardStatCard title="Average Age" value={overview?.average_age ?? "--"} icon={Cake} iconColor="text-purple-600" iconBg="bg-purple-50" />
+          <DashboardStatCard title="Cities Represented" value={overview?.cities_represented ?? "--"} icon={MapPin} iconColor="text-green-600" iconBg="bg-green-50" />
           <DashboardStatCard
             title="Estimated Value"
             value={estimatedValue !== null ? `$${Math.round(estimatedValue).toLocaleString()}` : "--"}
             icon={DollarSign}
-            iconColor="bg-emerald-600"
+            iconColor="text-emerald-600"
+            iconBg="bg-emerald-50"
             action={(
               <button
                 type="button"

@@ -3,7 +3,6 @@ import { DashboardLayout } from "../components/layout/DashboardLayout";
 import { Overview } from "../features/overview/Overview";
 import { Volunteers } from "../features/volunteers/Volunteers";
 import { Recognition } from "../features/recognition/Recognition";
-import { Events } from "../features/events/Events";
 import { SignIn } from "../features/auth/SignIn";
 import { SignUp } from "../features/auth/SignUp";
 import { AuthProvider } from "../features/auth/AuthProvider";
@@ -32,7 +31,6 @@ export default function App() {
           >
             <Route index element={<Overview />} />
             <Route path="volunteers" element={<Volunteers />} />
-            <Route path="events" element={<Events />} />
             <Route path="recognition" element={<Recognition />} />
           </Route>
         </Routes>

@@ -5,9 +5,7 @@ import {
   Award,
   TrendingUp,
   Menu,
-  Bell,
   LogOut,
-  CalendarDays,
 } from "lucide-react";
 import { useState } from "react";
 import { Chatbot } from "@/components/Chatbot";
@@ -22,7 +20,6 @@ export function DashboardLayout() {
   const navigation = [
     { name: "Overview", href: "/dashboard", icon: LayoutDashboard, disabled: false },
     { name: "Volunteers", href: "/dashboard/volunteers", icon: Users, disabled: false },
-    { name: "Events", href: "/dashboard/events", icon: CalendarDays, disabled: false },
     { name: "Recognition", href: "/dashboard/recognition", icon: Award, disabled: false },
   ];
 
@@ -32,13 +29,15 @@ export function DashboardLayout() {
   };
 
   const displayName = [profile?.first_name, profile?.last_name].filter(Boolean).join(" ");
-  const profileInitials =
-    displayName
-      .split(" ")
-      .map((part) => part[0])
-      .join("")
-      .slice(0, 2)
-      .toUpperCase() || user?.email?.slice(0, 2).toUpperCase() || "SM";
+  const emailName = user?.email?.split("@")[0] ?? "";
+  const emailNameParts = emailName.split(/[._\-\s]+/).filter(Boolean);
+  const profileInitials = (
+    emailNameParts.length > 1
+      ? emailNameParts.map((part) => part[0]).join("")
+      : emailName.slice(0, 2)
+  )
+    .slice(0, 2)
+    .toUpperCase() || "SM";
 
   return (
   <div className="flex h-screen bg-background">
@@ -133,14 +132,6 @@ export function DashboardLayout() {
                 </div>
               )}
             </div>
-
-            <button
-              className="relative rounded-full p-2 transition-colors hover:bg-slate-100"
-              aria-label="Notifications"
-            >
-              <Bell className="h-5 w-5 text-slate-600" />
-              <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-red-500" />
-            </button>
 
             <button
               className="flex h-10 w-10 items-center justify-center rounded-full bg-[#2563eb] text-sm font-medium text-white transition hover:bg-blue-700"

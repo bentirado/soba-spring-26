@@ -17,7 +17,6 @@ from mock_data.charts import (
     volunteers_by_ethnicity,
 )
 from chatbot import router as chatbot_router
-from events import router as events_router
 from email_bot import router as email_router
 from volunteers import router as volunteers_router
 
@@ -102,7 +101,6 @@ def filter_volunteers_by_range(volunteers: list[dict], date_range: Optional[str]
 app = FastAPI(lifespan=lifespan)
 
 app.include_router(chatbot_router)
-app.include_router(events_router)
 app.include_router(email_router)
 app.include_router(volunteers_router)
 

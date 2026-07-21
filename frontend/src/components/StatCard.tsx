@@ -7,11 +7,19 @@ type StatCardProps = {
   value: string | number;
   icon?: LucideIcon;
   iconColor?: string;
+  iconBg?: string;
   action?: ReactNode;
 };
 
 // Reusable card component for displaying one overview metric.
-export default function StatCard({ title, value, icon: Icon, iconColor = "bg-blue-600", action }: StatCardProps) {
+export default function StatCard({
+  title,
+  value,
+  icon: Icon,
+  iconColor = "text-blue-600",
+  iconBg = "bg-blue-50",
+  action,
+}: StatCardProps) {
   return (
     <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
       <div className="flex items-start justify-between">
@@ -26,8 +34,8 @@ export default function StatCard({ title, value, icon: Icon, iconColor = "bg-blu
           <p className="mt-2 text-3xl font-bold text-slate-900">{value}</p>
         </div>
         {Icon && (
-          <div className={`${iconColor} rounded-lg p-3`}>
-            <Icon className="h-6 w-6 text-white" />
+          <div className={`flex h-12 w-12 items-center justify-center rounded-xl ${iconBg} ${iconColor}`}>
+            <Icon className="h-6 w-6" />
           </div>
         )}
       </div>
