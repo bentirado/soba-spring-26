@@ -9,6 +9,7 @@ import {
   MessageSquare
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
+import { apiFetch } from "@/lib/api";
 
 interface Message {
   id: string;
@@ -21,10 +22,6 @@ interface Message {
 interface ChatbotProps {
   onQueryGenerate?: (query: string) => void;
 }
-
-const API_BASE_URL =
-  (import.meta.env.VITE_API_BASE_URL as string | undefined)?.replace(/\/$/, "") ??
-  "http://127.0.0.1:8000";
 
 const STORAGE_KEY = "binjow_chat_history";
 const HISTORY_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
@@ -124,7 +121,7 @@ export function Chatbot({ onQueryGenerate: _onQueryGenerate }: ChatbotProps) {
         .filter((m) => m.id !== "welcome")
         .map((m) => ({ role: m.role, content: m.content }));
 
-      const response = await fetch(`${API_BASE_URL}/api/chat`, {
+      const response = await apiFetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ messages: history }),

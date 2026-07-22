@@ -3,6 +3,17 @@ from collections import Counter
 from datetime import datetime
 
 
+def normalize_city_label(raw_city):
+    if raw_city is None:
+        return "Unknown"
+
+    cleaned = " ".join(str(raw_city).strip().split())
+    if not cleaned:
+        return "Unknown"
+
+    return cleaned.title()
+
+
 # Build line-chart data showing how many volunteers have their most recent
 # recorded activity in each month.
 def volunteers_by_last_activity_month(volunteers):
@@ -44,7 +55,7 @@ def volunteers_by_city(volunteers):
     city_counts = Counter()
 
     for volunteer in volunteers:
-        city = volunteer.get("city") or "Unknown"
+        city = normalize_city_label(volunteer.get("city"))
         city_counts[city] += 1
 
     return [

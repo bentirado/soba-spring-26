@@ -1,4 +1,6 @@
-import { Link } from "react-router-dom";
+import { useEffect, useState, type FormEvent } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -9,11 +11,56 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { useAuth } from "./AuthProvider";
 
 export function SignUp() {
-  const handleSubmit = (e: React.FormEvent) => {
+  const navigate = useNavigate();
+  const { configError, session, signUp } = useAuth();
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [errorMessage, setErrorMessage] = useState("");
+  const [successMessage, setSuccessMessage] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (session) {
+      navigate("/dashboard", { replace: true });
+    }
+  }, [navigate, session]);
+
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    console.log("Sign up submitted");
+    setErrorMessage("");
+    setSuccessMessage("");
+
+    if (password !== confirmPassword) {
+      setErrorMessage("Passwords do not match.");
+      return;
+    }
+
+    setIsSubmitting(true);
+    const result = await signUp(email, password, {
+      firstName,
+      lastName,
+      phone,
+    });
+    setIsSubmitting(false);
+
+    if (result.error) {
+      setErrorMessage(result.error);
+      return;
+    }
+
+    if (result.needsEmailConfirmation) {
+      setSuccessMessage("Account created. Check your email to confirm your account before signing in.");
+      return;
+    }
+
+    navigate("/dashboard", { replace: true });
   };
 
   return (
@@ -88,6 +135,20 @@ export function SignUp() {
           <CardContent className="pt-2 px-6 pb-6 bg-white">
             <div className="h-px bg-gray-200 mb-6" />
 
+            {(configError || errorMessage) && (
+              <Alert variant="destructive" className="mb-4">
+                <AlertDescription>
+                  {configError || errorMessage}
+                </AlertDescription>
+              </Alert>
+            )}
+
+            {successMessage && (
+              <Alert className="mb-4 border-green-200 bg-green-50 text-green-800">
+                <AlertDescription>{successMessage}</AlertDescription>
+              </Alert>
+            )}
+
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-2">
@@ -98,6 +159,8 @@ export function SignUp() {
                     id="firstName"
                     type="text"
                     placeholder="John"
+                    value={firstName}
+                    onChange={(event) => setFirstName(event.target.value)}
                     required
                     className="focus-visible:ring-2 border-gray-300"
                     style={
@@ -116,6 +179,8 @@ export function SignUp() {
                     id="lastName"
                     type="text"
                     placeholder="Doe"
+                    value={lastName}
+                    onChange={(event) => setLastName(event.target.value)}
                     required
                     className="focus-visible:ring-2 border-gray-300"
                     style={
@@ -135,6 +200,8 @@ export function SignUp() {
                   id="email"
                   type="email"
                   placeholder="your.email@example.com"
+                  value={email}
+                  onChange={(event) => setEmail(event.target.value)}
                   required
                   className="focus-visible:ring-2 border-gray-300"
                   style={
@@ -153,6 +220,8 @@ export function SignUp() {
                   id="phone"
                   type="tel"
                   placeholder="(555) 123-4567"
+                  value={phone}
+                  onChange={(event) => setPhone(event.target.value)}
                   required
                   className="focus-visible:ring-2 border-gray-300"
                   style={
@@ -171,6 +240,8 @@ export function SignUp() {
                   id="password"
                   type="password"
                   placeholder="Create a password"
+                  value={password}
+                  onChange={(event) => setPassword(event.target.value)}
                   required
                   className="focus-visible:ring-2 border-gray-300"
                   style={
@@ -189,6 +260,8 @@ export function SignUp() {
                   id="confirmPassword"
                   type="password"
                   placeholder="Confirm your password"
+                  value={confirmPassword}
+                  onChange={(event) => setConfirmPassword(event.target.value)}
                   required
                   className="focus-visible:ring-2 border-gray-300"
                   style={
@@ -214,10 +287,11 @@ export function SignUp() {
 
               <Button
                 type="submit"
+                disabled={isSubmitting || Boolean(configError)}
                 className="w-full text-white hover:opacity-90 transition-opacity mt-6"
                 style={{ backgroundColor: "#FF6B35" }}
               >
-                Create Account
+                {isSubmitting ? "Creating account..." : "Create Account"}
               </Button>
             </form>
 

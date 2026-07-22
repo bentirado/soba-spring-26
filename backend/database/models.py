@@ -559,27 +559,3 @@ class AgentRecommendation(Base):
             f"<AgentRecommendation id={self.id} agent_run_id={self.agent_run_id} "
             f"type='{self.recommendation_type}' priority='{self.priority}' status='{self.status}'>"
         )
-
-
-class DataPipelineRun(Base):
-    __tablename__ = "data_pipeline_runs"
-
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
-    pipeline_name: Mapped[str] = mapped_column(String(200), nullable=False)
-    source: Mapped[str] = mapped_column(String(100), nullable=False)
-    started_at: Mapped[Optional[datetime]] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
-    finished_at: Mapped[Optional[datetime]] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
-    status: Mapped[str] = mapped_column(String(50), nullable=False, default="Running")
-    records_ingested: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    records_failed: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    error_log: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-
-    def __repr__(self) -> str:
-        return (
-            f"<DataPipelineRun id={self.id} pipeline='{self.pipeline_name}' "
-            f"source='{self.source}' status='{self.status}'>"
-        )

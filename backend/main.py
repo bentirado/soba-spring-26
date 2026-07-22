@@ -1,9 +1,11 @@
 from contextlib import asynccontextmanager
+from datetime import date, timedelta
 from fastapi import FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from typing import Optional
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from auth import CurrentUser, get_current_user
 from database.connection import get_db, init_db
 from database.models import Volunteer
 from mock_data.overview import build_overview
@@ -14,10 +16,8 @@ from mock_data.charts import (
     volunteers_by_age_group,
     volunteers_by_ethnicity,
 )
-from chatbot import router as chatbot_router
-from events import router as events_router
-from apply import router as apply_router
 from email_bot import router as email_router
+from insights import router as insights_router
 from volunteers import router as volunteers_router
 
 
@@ -64,16 +64,44 @@ async def load_volunteers_from_db(db: AsyncSession):
     ]
 
 
+def filter_volunteers_by_range(volunteers: list[dict], date_range: Optional[str]):
+    if not date_range or date_range == "all_time":
+        return volunteers
+
+    today = date.today()
+    if date_range == "last_3_years":
+        start_date = today - timedelta(days=365 * 3)
+    elif date_range == "this_year":
+        start_date = date(today.year, 1, 1)
+    elif date_range == "this_quarter":
+        quarter_start_month = ((today.month - 1) // 3) * 3 + 1
+        start_date = date(today.year, quarter_start_month, 1)
+    else:
+        return volunteers
+
+    filtered_volunteers = []
+    for volunteer in volunteers:
+        last_activity = volunteer.get("last_activity")
+        if not last_activity:
+            continue
+        try:
+            activity_date = date.fromisoformat(last_activity)
+        except ValueError:
+            continue
+        if start_date <= activity_date <= today:
+            filtered_volunteers.append(volunteer)
+
+    return filtered_volunteers
+
+
 # ---------------------------------------------------------------------------
 # App
 # ---------------------------------------------------------------------------
 
 app = FastAPI(lifespan=lifespan)
 
-app.include_router(chatbot_router)
-app.include_router(events_router)
-app.include_router(apply_router)
 app.include_router(email_router)
+app.include_router(insights_router)
 app.include_router(volunteers_router)
 
 app.add_middleware(
@@ -99,26 +127,39 @@ def health_check():
 
 # Return the dashboard overview using volunteer data from PostgreSQL.
 @app.get("/api/overview")
-async def get_dashboard_overview(db: AsyncSession = Depends(get_db)):
+async def get_dashboard_overview(
+    range: Optional[str] = None,
+    db: AsyncSession = Depends(get_db),
+    current_user: CurrentUser = Depends(get_current_user),
+):
     volunteers = await load_volunteers_from_db(db)
+    volunteers = filter_volunteers_by_range(volunteers, range)
     return build_overview(volunteers)
 
 
 # Return chart data for volunteer last activity by month.
 @app.get("/api/charts/last-activity-by-month")
-async def get_last_activity_by_month(db: AsyncSession = Depends(get_db)):
+async def get_last_activity_by_month(
+    range: Optional[str] = None,
+    db: AsyncSession = Depends(get_db),
+    current_user: CurrentUser = Depends(get_current_user),
+):
     volunteers = await load_volunteers_from_db(db)
+    volunteers = filter_volunteers_by_range(volunteers, range)
     return volunteers_by_last_activity_month(volunteers)
 
 
 # Return chart data showing the number of volunteers in each gender group.
 @app.get("/api/charts/volunteers-by-gender")
 async def get_volunteers_by_gender(
+    range: Optional[str] = None,
     start: Optional[str] = None,
     end: Optional[str] = None,
     db: AsyncSession = Depends(get_db),
+    current_user: CurrentUser = Depends(get_current_user),
 ):
     volunteers = await load_volunteers_from_db(db)
+    volunteers = filter_volunteers_by_range(volunteers, range)
 
     if start or end:
         filtered_volunteers = []
@@ -137,27 +178,34 @@ async def get_volunteers_by_gender(
 # Return chart data showing the number of volunteers in each city.
 @app.get("/api/charts/volunteers-by-city")
 async def get_volunteers_by_city(
+    range: Optional[str] = None,
     start: Optional[str] = None,
     end: Optional[str] = None,
     db: AsyncSession = Depends(get_db),
+    current_user: CurrentUser = Depends(get_current_user),
 ):
     volunteers = await load_volunteers_from_db(db)
+    volunteers = filter_volunteers_by_range(volunteers, range)
     return volunteers_by_city(volunteers)
 
 
 @app.get("/api/charts/volunteers-by-age-group")
 async def get_volunteers_by_age_group(
+    range: Optional[str] = None,
     db: AsyncSession = Depends(get_db),
+    current_user: CurrentUser = Depends(get_current_user),
 ):
     volunteers = await load_volunteers_from_db(db)
+    volunteers = filter_volunteers_by_range(volunteers, range)
     return volunteers_by_age_group(volunteers)
 
 
 @app.get("/api/charts/volunteers-by-ethnicity")
 async def get_volunteers_by_ethnicity(
+    range: Optional[str] = None,
     db: AsyncSession = Depends(get_db),
+    current_user: CurrentUser = Depends(get_current_user),
 ):
     volunteers = await load_volunteers_from_db(db)
+    volunteers = filter_volunteers_by_range(volunteers, range)
     return volunteers_by_ethnicity(volunteers)
-
-
