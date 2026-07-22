@@ -8,7 +8,6 @@ import {
   LogOut,
 } from "lucide-react";
 import { useState } from "react";
-import { Chatbot } from "@/components/Chatbot";
 import { useAuth } from "@/features/auth/AuthProvider";
 
 export function DashboardLayout() {
@@ -147,7 +146,6 @@ export function DashboardLayout() {
         </main>
       </div>
 
-      <Chatbot />
     </div>
   );
 }

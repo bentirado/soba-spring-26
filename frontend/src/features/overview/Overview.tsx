@@ -6,6 +6,7 @@ import VolunteersByGenderPieChart from "@/components/VolunteersByGenderPieChart"
 import VolunteerBreakdownChart from "@/components/VolunteerBreakdownChart";
 import { FileText, ChevronDown, Users, Clock3, Cake, MapPin, DollarSign, AlertCircle, Loader2, HelpCircle, Sparkles } from "lucide-react";
 import { apiFetch, requireOk } from "@/lib/api";
+import { generateInsight as generateAiInsight } from "@/lib/insights";
 
 const rangeOptions = ["All Time", "Last 3 Years", "This Year", "This Quarter"];
 const rangeParamByLabel: Record<string, string> = {
@@ -703,79 +704,119 @@ export function Overview() {
     window.localStorage.setItem(ethnicityChartStorageKey, nextType);
   };
 
-  const generateLastActivityInsight = () => {
-    if (lastActivityInsightMessages.length === 0 || lastActivityInsightLoading) {
+  const generateLastActivityInsight = async () => {
+    if (chronologicalLastActivityData.length === 0 || lastActivityInsightLoading) {
       return;
     }
 
     setGeneratedLastActivityInsight("");
     setLastActivityInsightLoading(true);
 
-    window.setTimeout(() => {
-      const randomIndex = Math.floor(Math.random() * lastActivityInsightMessages.length);
-      setGeneratedLastActivityInsight(lastActivityInsightMessages[randomIndex]);
+    try {
+      const insight = await generateAiInsight({
+        page: "Overview",
+        subject: "Recent Volunteer Activity",
+        context: `Selected range: ${selectedRange}. Volunteers grouped by the month of their most recent recorded activity.`,
+        data: chronologicalLastActivityData,
+      });
+      setGeneratedLastActivityInsight(insight);
+    } catch (err) {
+      setGeneratedLastActivityInsight(err instanceof Error ? err.message : "Could not generate insight.");
+    } finally {
       setLastActivityInsightLoading(false);
-    }, 1600);
+    }
   };
 
-  const generateCityInsight = () => {
-    if (cityInsightMessages.length === 0 || cityInsightLoading) {
+  const generateCityInsight = async () => {
+    if (sortedCityData.length === 0 || cityInsightLoading) {
       return;
     }
 
     setGeneratedCityInsight("");
     setCityInsightLoading(true);
 
-    window.setTimeout(() => {
-      const randomIndex = Math.floor(Math.random() * cityInsightMessages.length);
-      setGeneratedCityInsight(cityInsightMessages[randomIndex]);
+    try {
+      const insight = await generateAiInsight({
+        page: "Overview",
+        subject: "Volunteers by City",
+        context: `Selected range: ${selectedRange}. City names are standardized for charting; focus on distribution and concentration.`,
+        data: sortedCityData,
+      });
+      setGeneratedCityInsight(insight);
+    } catch (err) {
+      setGeneratedCityInsight(err instanceof Error ? err.message : "Could not generate insight.");
+    } finally {
       setCityInsightLoading(false);
-    }, 1600);
+    }
   };
 
-  const generateGenderInsight = () => {
-    if (genderInsightMessages.length === 0 || genderInsightLoading) {
+  const generateGenderInsight = async () => {
+    if (sortedGenderData.length === 0 || genderInsightLoading) {
       return;
     }
 
     setGeneratedGenderInsight("");
     setGenderInsightLoading(true);
 
-    window.setTimeout(() => {
-      const randomIndex = Math.floor(Math.random() * genderInsightMessages.length);
-      setGeneratedGenderInsight(genderInsightMessages[randomIndex]);
+    try {
+      const insight = await generateAiInsight({
+        page: "Overview",
+        subject: "Volunteers by Gender",
+        context: `Selected range: ${selectedRange}. Explain the highest-level demographic pattern without making assumptions about cause.`,
+        data: sortedGenderData,
+      });
+      setGeneratedGenderInsight(insight);
+    } catch (err) {
+      setGeneratedGenderInsight(err instanceof Error ? err.message : "Could not generate insight.");
+    } finally {
       setGenderInsightLoading(false);
-    }, 1600);
+    }
   };
 
-  const generateAgeGroupInsight = () => {
-    if (ageGroupInsightMessages.length === 0 || ageGroupInsightLoading) {
+  const generateAgeGroupInsight = async () => {
+    if (ageGroupChartData.length === 0 || ageGroupInsightLoading) {
       return;
     }
 
     setGeneratedAgeGroupInsight("");
     setAgeGroupInsightLoading(true);
 
-    window.setTimeout(() => {
-      const randomIndex = Math.floor(Math.random() * ageGroupInsightMessages.length);
-      setGeneratedAgeGroupInsight(ageGroupInsightMessages[randomIndex]);
+    try {
+      const insight = await generateAiInsight({
+        page: "Overview",
+        subject: "Volunteers by Age Group",
+        context: `Selected range: ${selectedRange}. Explain representation across age groups in a careful, client-ready way.`,
+        data: ageGroupChartData,
+      });
+      setGeneratedAgeGroupInsight(insight);
+    } catch (err) {
+      setGeneratedAgeGroupInsight(err instanceof Error ? err.message : "Could not generate insight.");
+    } finally {
       setAgeGroupInsightLoading(false);
-    }, 1600);
+    }
   };
 
-  const generateEthnicityInsight = () => {
-    if (ethnicityInsightMessages.length === 0 || ethnicityInsightLoading) {
+  const generateEthnicityInsight = async () => {
+    if (ethnicityChartData.length === 0 || ethnicityInsightLoading) {
       return;
     }
 
     setGeneratedEthnicityInsight("");
     setEthnicityInsightLoading(true);
 
-    window.setTimeout(() => {
-      const randomIndex = Math.floor(Math.random() * ethnicityInsightMessages.length);
-      setGeneratedEthnicityInsight(ethnicityInsightMessages[randomIndex]);
+    try {
+      const insight = await generateAiInsight({
+        page: "Overview",
+        subject: "Volunteers by Ethnicity",
+        context: `Selected range: ${selectedRange}. Discuss the distribution respectfully and avoid unsupported conclusions.`,
+        data: ethnicityChartData,
+      });
+      setGeneratedEthnicityInsight(insight);
+    } catch (err) {
+      setGeneratedEthnicityInsight(err instanceof Error ? err.message : "Could not generate insight.");
+    } finally {
       setEthnicityInsightLoading(false);
-    }, 1600);
+    }
   };
 
   useEffect(() => {

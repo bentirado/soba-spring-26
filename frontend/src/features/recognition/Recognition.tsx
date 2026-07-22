@@ -11,6 +11,7 @@ import {
   Users,
 } from "lucide-react";
 import { apiFetch, requireOk } from "@/lib/api";
+import { generateInsight as generateAiInsight } from "@/lib/insights";
 
 type Volunteer = {
   id: number;
@@ -117,25 +118,36 @@ export function Recognition() {
   }));
   const largestTier = tierData.reduce((current, next) => (next.count > current.count ? next : current), tierData[0]);
 
-  const insightMessages = topContributor
-    ? [
-        `${topContributor.name} currently leads the uploaded dataset with ${topContributor.hours.toLocaleString()} lifetime hours, representing about ${topContributor.hourShare}% of all recorded hours.`,
-        `The strongest contribution signal is at the top of the hours ranking: ${topContributor.name} has ${topContributor.hours.toLocaleString()} hours. The client may want to use this view to identify high-contribution volunteers for follow-up or appreciation.`,
-        `The contribution tiers show the largest group is ${largestTier.label}, with ${largestTier.count.toLocaleString()} volunteer${largestTier.count === 1 ? "" : "s"}. That helps explain whether hours are concentrated among a few people or spread across the dataset.`,
-        `${hundredHourCount.toLocaleString()} volunteer${hundredHourCount === 1 ? " has" : "s have"} reached 100+ hours. That is a useful milestone group if the client wants a simple recognition threshold.`,
-        `This page suggests ${volunteersWithHours.toLocaleString()} volunteer${volunteersWithHours === 1 ? " has" : "s have"} at least some recorded hours. The average is ${averageHours.toFixed(1)} hours per uploaded volunteer, which gives context for the top contributors.`,
-      ]
-    : [];
-
-  const generateInsight = () => {
-    if (insightMessages.length === 0 || insightLoading) return;
+  const generateInsight = async () => {
+    if (!topContributor || insightLoading) return;
     setGeneratedInsight("");
     setInsightLoading(true);
-    window.setTimeout(() => {
-      const randomIndex = Math.floor(Math.random() * insightMessages.length);
-      setGeneratedInsight(insightMessages[randomIndex]);
+    try {
+      const insight = await generateAiInsight({
+        page: "Recognition",
+        subject: "Contribution Analytics",
+        context: "Analyze lifetime hours, top contributors, milestone groups, and contribution tiers from the active uploaded spreadsheet.",
+        data: {
+          totalHours,
+          volunteersWithHours,
+          averageHours: Number(averageHours.toFixed(1)),
+          hundredHourCount,
+          largestTier: { label: largestTier.label, count: largestTier.count },
+          topContributors: topTen.map((volunteer) => ({
+            rank: volunteer.rank,
+            name: volunteer.name,
+            hours: volunteer.hours,
+            hourShare: volunteer.hourShare,
+          })),
+          tiers: tierData.map((tier) => ({ label: tier.label, count: tier.count })),
+        },
+      });
+      setGeneratedInsight(insight);
+    } catch (err) {
+      setGeneratedInsight(err instanceof Error ? err.message : "Could not generate insight.");
+    } finally {
       setInsightLoading(false);
-    }, 1600);
+    }
   };
 
   useEffect(() => {
@@ -253,7 +265,7 @@ export function Recognition() {
                   <Trophy className={`h-5 w-5 ${person.rank === 1 ? "text-amber-500" : "text-slate-400"}`} />
                 </div>
                 <p className="text-lg font-semibold text-gray-900">{person.name}</p>
-                <p className="text-xs text-gray-500">{person.email || "Imported from spreadsheet"}</p>
+                {person.email && <p className="text-xs text-gray-500">{person.email}</p>}
                 <p className="mt-4 text-3xl font-semibold text-emerald-600">{person.hours.toFixed(1)}</p>
                 <p className="mt-1 text-sm text-gray-500">lifetime hours</p>
               </div>
@@ -343,7 +355,7 @@ export function Recognition() {
                     <td className="px-4 py-3 font-semibold text-gray-900">#{volunteer.rank}</td>
                     <td className="px-4 py-3">
                       <div className="font-medium text-gray-900">{volunteer.name}</div>
-                      <div className="text-xs text-gray-500">{volunteer.email || "Imported from spreadsheet"}</div>
+                      {volunteer.email && <div className="text-xs text-gray-500">{volunteer.email}</div>}
                     </td>
                     <td className="px-4 py-3 text-gray-600">
                       {[volunteer.city, volunteer.state].filter(Boolean).join(", ") || "-"}

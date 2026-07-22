@@ -28,6 +28,7 @@ import {
 } from "lucide-react";
 import * as XLSX from "xlsx";
 import { apiFetch, requireOk } from "@/lib/api";
+import { generateInsight as generateAiInsight } from "@/lib/insights";
 
 type Volunteer = {
   id: number;
@@ -519,48 +520,80 @@ export function Volunteers() {
     setChartOpen(false);
   };
 
-  const generateWeekdayInsight = () => {
-    if (weekdayInsightMessages.length === 0 || weekdayInsightLoading) return;
+  const generateWeekdayInsight = async () => {
+    if (weeklyActivityData.every((item) => item.volunteers === 0) || weekdayInsightLoading) return;
     setGeneratedWeekdayInsight("");
     setWeekdayInsightLoading(true);
-    window.setTimeout(() => {
-      const randomIndex = Math.floor(Math.random() * weekdayInsightMessages.length);
-      setGeneratedWeekdayInsight(weekdayInsightMessages[randomIndex]);
+    try {
+      const insight = await generateAiInsight({
+        page: "Volunteers",
+        subject: "Last Activity By Weekday",
+        context: `Selected metric in the UI: ${selectedMetricLabel}. Based on each volunteer's latest recorded activity date.`,
+        data: weeklyActivityData,
+      });
+      setGeneratedWeekdayInsight(insight);
+    } catch (err) {
+      setGeneratedWeekdayInsight(err instanceof Error ? err.message : "Could not generate insight.");
+    } finally {
       setWeekdayInsightLoading(false);
-    }, 1600);
+    }
   };
 
-  const generateMonthlyInsight = () => {
-    if (monthlyInsightMessages.length === 0 || monthlyInsightLoading) return;
+  const generateMonthlyInsight = async () => {
+    if (lastActivityByMonthData.every((item) => item.volunteers === 0) || monthlyInsightLoading) return;
     setGeneratedMonthlyInsight("");
     setMonthlyInsightLoading(true);
-    window.setTimeout(() => {
-      const randomIndex = Math.floor(Math.random() * monthlyInsightMessages.length);
-      setGeneratedMonthlyInsight(monthlyInsightMessages[randomIndex]);
+    try {
+      const insight = await generateAiInsight({
+        page: "Volunteers",
+        subject: "Last Activity by Month",
+        context: "Uploaded records grouped by latest activity month, with lifetime hours layered in.",
+        data: lastActivityByMonthData,
+      });
+      setGeneratedMonthlyInsight(insight);
+    } catch (err) {
+      setGeneratedMonthlyInsight(err instanceof Error ? err.message : "Could not generate insight.");
+    } finally {
       setMonthlyInsightLoading(false);
-    }, 1600);
+    }
   };
 
-  const generateYearInsight = () => {
-    if (yearInsightMessages.length === 0 || yearInsightLoading) return;
+  const generateYearInsight = async () => {
+    if ((currentYearHours === 0 && previousYearHours === 0) || yearInsightLoading) return;
     setGeneratedYearInsight("");
     setYearInsightLoading(true);
-    window.setTimeout(() => {
-      const randomIndex = Math.floor(Math.random() * yearInsightMessages.length);
-      setGeneratedYearInsight(yearInsightMessages[randomIndex]);
+    try {
+      const insight = await generateAiInsight({
+        page: "Volunteers",
+        subject: "Activity Hours by Year",
+        context: `Compare lifetime hours grouped by latest activity month. This year total: ${currentYearHours}. Previous year total: ${previousYearHours}.`,
+        data: activityYearComparisonData,
+      });
+      setGeneratedYearInsight(insight);
+    } catch (err) {
+      setGeneratedYearInsight(err instanceof Error ? err.message : "Could not generate insight.");
+    } finally {
       setYearInsightLoading(false);
-    }, 1600);
+    }
   };
 
-  const generateAgeInsight = () => {
-    if (ageInsightMessages.length === 0 || ageInsightLoading) return;
+  const generateAgeInsight = async () => {
+    if (ageDistributionData.length === 0 || ageInsightLoading) return;
     setGeneratedAgeInsight("");
     setAgeInsightLoading(true);
-    window.setTimeout(() => {
-      const randomIndex = Math.floor(Math.random() * ageInsightMessages.length);
-      setGeneratedAgeInsight(ageInsightMessages[randomIndex]);
+    try {
+      const insight = await generateAiInsight({
+        page: "Volunteers",
+        subject: "Age Distribution",
+        context: `Total uploaded records: ${totalVolunteers}. Explain the age distribution without assuming why it exists.`,
+        data: ageDistributionData.map(({ group, volunteers }) => ({ group, volunteers })),
+      });
+      setGeneratedAgeInsight(insight);
+    } catch (err) {
+      setGeneratedAgeInsight(err instanceof Error ? err.message : "Could not generate insight.");
+    } finally {
       setAgeInsightLoading(false);
-    }, 1600);
+    }
   };
 
   useEffect(() => {
@@ -773,7 +806,7 @@ export function Volunteers() {
                         <div className="font-medium text-gray-900">
                           {getVolunteerDisplayName(volunteer)}
                         </div>
-                        <div className="text-xs text-gray-500">{volunteer.email || "Imported from spreadsheet"}</div>
+                        {volunteer.email && <div className="text-xs text-gray-500">{volunteer.email}</div>}
                       </td>
                       <td className="px-4 py-3 text-gray-600">
                         {[volunteer.city, volunteer.state].filter(Boolean).join(", ") || "—"}

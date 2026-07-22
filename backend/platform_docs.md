@@ -1,6 +1,6 @@
 # BINJOW Platform Guide
 <!-- Keep this file updated as new pages and features are built. -->
-<!-- The AI chatbot reads this file on every request. -->
+<!-- Keep AI-facing product notes here as future insight/report features expand. -->
 
 ## Audience And Access
 - This is an internal client-facing dashboard for Science Museum Oklahoma staff.
@@ -50,10 +50,9 @@
 - Revenue analytics are not part of the current client-facing launch scope.
 - Exhibitions management is not part of the current client-facing launch scope.
 - Public volunteer/customer application flows have been removed from the production app.
+- The old floating BINJOW chatbot is not part of the v1 production app path.
 
-## Chatbot (BINJOW)
-- The floating chat button is in the bottom-right corner of every page
-- Click it to open the chat window
-- Type a question and press Enter to send (Shift+Enter for a new line)
-- Click suggestion buttons to quickly fill the input
-- Close the chat by clicking the X button in the chat header
+## Future AI Direction
+- On-demand AI insight buttons are backed by the backend `/api/insights` endpoint and require `OPENAI_API_KEY`.
+- The existing chart/report data should remain the source of truth for future AI-generated summaries.
+- Future AI work should focus next on comprehensive report narrative.
