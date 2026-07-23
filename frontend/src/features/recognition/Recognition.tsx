@@ -172,7 +172,7 @@ export function Recognition() {
           type="button"
           onClick={generateInsight}
           disabled={rankedVolunteers.length === 0 || insightLoading}
-          className="inline-flex items-center justify-center rounded-lg border border-amber-200 bg-amber-50 px-4 py-2 text-sm font-medium text-amber-700 transition hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-60"
+          className="inline-flex items-center justify-center rounded-lg border border-amber-200 bg-amber-50 px-4 py-2 text-sm font-medium text-amber-700 transition hover:bg-amber-100 disabled:cursor-not-allowed disabled:brightness-95"
         >
           {insightLoading ? (
             <Loader2 className="mr-2 h-4 w-4 animate-spin" />

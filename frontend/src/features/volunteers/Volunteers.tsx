@@ -679,7 +679,7 @@ export function Volunteers() {
           <button
             onClick={handleImportUploadClick}
             disabled={importUploading}
-            className="inline-flex items-center gap-2 rounded-lg border border-blue-200 bg-blue-50 px-4 py-2 text-sm font-medium text-blue-700 shadow-sm transition hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-60"
+            className="inline-flex items-center gap-2 rounded-lg border border-blue-200 bg-blue-50 px-4 py-2 text-sm font-medium text-blue-700 shadow-sm transition hover:bg-blue-100 disabled:cursor-not-allowed disabled:brightness-95"
           >
             <FileUp className="h-4 w-4" />
             {importUploading ? "Replacing..." : "Replace Dataset"}
@@ -899,7 +899,7 @@ export function Volunteers() {
             type="button"
             onClick={generateMonthlyInsight}
             disabled={lastActivityByMonthData.every((item) => item.volunteers === 0) || monthlyInsightLoading}
-            className="inline-flex items-center justify-center rounded-lg border border-blue-200 bg-blue-50 px-4 py-2 text-sm font-medium text-blue-700 transition hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-60"
+            className="inline-flex items-center justify-center rounded-lg border border-blue-200 bg-blue-50 px-4 py-2 text-sm font-medium text-blue-700 transition hover:bg-blue-100 disabled:cursor-not-allowed disabled:brightness-95"
           >
             {monthlyInsightLoading ? (
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -950,7 +950,7 @@ export function Volunteers() {
               type="button"
               onClick={generateYearInsight}
               disabled={(currentYearHours === 0 && previousYearHours === 0) || yearInsightLoading}
-              className="inline-flex items-center justify-center rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-medium text-emerald-700 transition hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-60"
+              className="inline-flex items-center justify-center rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-medium text-emerald-700 transition hover:bg-emerald-100 disabled:cursor-not-allowed disabled:brightness-95"
             >
               {yearInsightLoading ? (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -1043,7 +1043,7 @@ export function Volunteers() {
               type="button"
               onClick={generateWeekdayInsight}
               disabled={weeklyActivityData.every((item) => item.volunteers === 0) || weekdayInsightLoading}
-              className="inline-flex items-center justify-center rounded-lg border border-blue-200 bg-blue-50 px-4 py-2 text-sm font-medium text-blue-700 transition hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-60"
+              className="inline-flex items-center justify-center rounded-lg border border-blue-200 bg-blue-50 px-4 py-2 text-sm font-medium text-blue-700 transition hover:bg-blue-100 disabled:cursor-not-allowed disabled:brightness-95"
             >
               {weekdayInsightLoading ? (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -1073,7 +1073,7 @@ export function Volunteers() {
             type="button"
             onClick={generateAgeInsight}
             disabled={ageDistributionData.length === 0 || ageInsightLoading}
-            className="inline-flex items-center justify-center rounded-lg border border-purple-200 bg-purple-50 px-4 py-2 text-sm font-medium text-purple-700 transition hover:bg-purple-100 disabled:cursor-not-allowed disabled:opacity-60"
+            className="inline-flex items-center justify-center rounded-lg border border-purple-200 bg-purple-50 px-4 py-2 text-sm font-medium text-purple-700 transition hover:bg-purple-100 disabled:cursor-not-allowed disabled:brightness-95"
           >
             {ageInsightLoading ? (
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />

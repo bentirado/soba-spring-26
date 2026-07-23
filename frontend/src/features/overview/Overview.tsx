@@ -1123,7 +1123,7 @@ export function Overview() {
                   type="button"
                   onClick={generateLastActivityInsight}
                   disabled={chronologicalLastActivityData.length === 0 || lastActivityInsightLoading}
-                  className="inline-flex items-center justify-center rounded-lg border border-blue-200 bg-blue-50 px-4 py-2 text-sm font-medium text-blue-700 transition hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-60"
+                  className="inline-flex items-center justify-center rounded-lg border border-blue-200 bg-blue-50 px-4 py-2 text-sm font-medium text-blue-700 transition hover:bg-blue-100 disabled:cursor-not-allowed disabled:brightness-95"
                 >
                   {lastActivityInsightLoading ? (
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -1168,7 +1168,7 @@ export function Overview() {
                   type="button"
                   onClick={generateCityInsight}
                   disabled={sortedCityData.length === 0 || cityInsightLoading}
-                  className="inline-flex items-center justify-center rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-medium text-emerald-700 transition hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-60"
+                  className="inline-flex items-center justify-center rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-medium text-emerald-700 transition hover:bg-emerald-100 disabled:cursor-not-allowed disabled:brightness-95"
                 >
                   {cityInsightLoading ? (
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -1213,7 +1213,7 @@ export function Overview() {
                   type="button"
                   onClick={generateGenderInsight}
                   disabled={sortedGenderData.length === 0 || genderInsightLoading}
-                  className="inline-flex items-center justify-center rounded-lg border border-indigo-200 bg-indigo-50 px-4 py-2 text-sm font-medium text-indigo-700 transition hover:bg-indigo-100 disabled:cursor-not-allowed disabled:opacity-60"
+                  className="inline-flex items-center justify-center rounded-lg border border-indigo-200 bg-indigo-50 px-4 py-2 text-sm font-medium text-indigo-700 transition hover:bg-indigo-100 disabled:cursor-not-allowed disabled:brightness-95"
                 >
                   {genderInsightLoading ? (
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -1258,7 +1258,7 @@ export function Overview() {
                   type="button"
                   onClick={generateAgeGroupInsight}
                   disabled={ageGroupChartData.length === 0 || ageGroupInsightLoading}
-                  className="inline-flex items-center justify-center rounded-lg border border-purple-200 bg-purple-50 px-4 py-2 text-sm font-medium text-purple-700 transition hover:bg-purple-100 disabled:cursor-not-allowed disabled:opacity-60"
+                  className="inline-flex items-center justify-center rounded-lg border border-purple-200 bg-purple-50 px-4 py-2 text-sm font-medium text-purple-700 transition hover:bg-purple-100 disabled:cursor-not-allowed disabled:brightness-95"
                 >
                   {ageGroupInsightLoading ? (
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -1307,7 +1307,7 @@ export function Overview() {
                   type="button"
                   onClick={generateEthnicityInsight}
                   disabled={ethnicityChartData.length === 0 || ethnicityInsightLoading}
-                  className="inline-flex items-center justify-center rounded-lg border border-cyan-200 bg-cyan-50 px-4 py-2 text-sm font-medium text-cyan-700 transition hover:bg-cyan-100 disabled:cursor-not-allowed disabled:opacity-60"
+                  className="inline-flex items-center justify-center rounded-lg border border-cyan-200 bg-cyan-50 px-4 py-2 text-sm font-medium text-cyan-700 transition hover:bg-cyan-100 disabled:cursor-not-allowed disabled:brightness-95"
                 >
                   {ethnicityInsightLoading ? (
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
