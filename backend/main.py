@@ -1,5 +1,6 @@
 from contextlib import asynccontextmanager
 from datetime import date, timedelta
+import os
 from fastapi import FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from typing import Optional
@@ -104,13 +105,23 @@ app.include_router(email_router)
 app.include_router(insights_router)
 app.include_router(volunteers_router)
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=[
+
+def get_allowed_origins():
+    local_origins = [
         "http://localhost:5173",
         "http://127.0.0.1:5173",
-        "https://soba-demo.vercel.app",
-    ],
+    ]
+    deployed_origins = [
+        origin.strip().rstrip("/")
+        for origin in os.getenv("FRONTEND_ORIGINS", "").split(",")
+        if origin.strip()
+    ]
+    return local_origins + deployed_origins
+
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=get_allowed_origins(),
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
