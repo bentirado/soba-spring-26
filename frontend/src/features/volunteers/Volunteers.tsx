@@ -99,18 +99,35 @@ const parseSpreadsheetFile = async (file: File): Promise<SpreadsheetRow[]> => {
 };
 
 function normalizeSpreadsheetRows(rows: SpreadsheetRow[]) {
+  const normalizeHeader = (header: string) => header.toLowerCase().replace(/[^a-z0-9]/g, "");
+  const getValue = (row: SpreadsheetRow, headers: string[]) => {
+    const normalizedHeaders = headers.map(normalizeHeader);
+    const matchingKey = Object.keys(row).find((key) => normalizedHeaders.includes(normalizeHeader(key)));
+    return matchingKey ? String(row[matchingKey] ?? "").trim() : "";
+  };
+
   return rows.map((row) => ({
-    City: String(row["City"] ?? ""),
-    State: String(row["State"] ?? ""),
-    Zip: String(row["Zip"] ?? ""),
-    Age: String(row["Age"] ?? ""),
-    Gender: String(row["Gender"] ?? ""),
-    Ethnicity: String(row["Ethnicity"] ?? ""),
-    Dietary_Restrictions: String(row["Dietary Restrictions"] ?? ""),
-    Hispanic_Latino_Or_Spanish: String(row["Hispanic, Latino Or Spanish"] ?? ""),
-    Life_Hours: String(row["Life Hours"] ?? ""),
-    Date_Of_Last_Activity: String(row["Date Of Last Activity"] ?? ""),
-    Age_1: String(row["Age_1"] ?? row["Age.1"] ?? ""),
+    City: getValue(row, ["City"]),
+    State: getValue(row, ["State"]),
+    Zip: getValue(row, ["Zip", "Zip Code", "Postal Code"]),
+    Age: getValue(row, ["Age"]),
+    Gender: getValue(row, ["Gender"]),
+    Ethnicity: getValue(row, ["Ethnicity"]),
+    Dietary_Restrictions: getValue(row, ["Dietary Restrictions", "Dietary_Restrictions"]),
+    Hispanic_Latino_Or_Spanish: getValue(row, [
+      "Hispanic, Latino Or Spanish",
+      "Hispanic Latino Or Spanish",
+      "Hispanic_Latino_Or_Spanish",
+    ]),
+    Life_Hours: getValue(row, ["Life Hours", "Life_Hours", "Lifetime Hours", "Hours"]),
+    Date_Of_Last_Activity: getValue(row, [
+      "Date Of Last Activity",
+      "Date_Of_Last_Activity",
+      "Date of Last Activity",
+      "Last Activity",
+      "Last Activity Date",
+    ]),
+    Age_1: getValue(row, ["Age_1", "Age.1", "Age Group", "Age Range"]),
   }));
 }
 
