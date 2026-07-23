@@ -96,9 +96,7 @@ export function DashboardLayout() {
           </nav>
 
           <div className="space-y-3 border-t border-white/15 p-4">
-            <div className="text-xs text-white/70">
-              Last updated: March 8, 2026
-            </div>
+
 
             <button
               onClick={handleLogout}
