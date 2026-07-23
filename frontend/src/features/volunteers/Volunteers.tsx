@@ -112,7 +112,8 @@ function normalizeSpreadsheetRows(rows: SpreadsheetRow[]) {
     Zip: getValue(row, ["Zip", "Zip Code", "Postal Code"]),
     Age: getValue(row, ["Age"]),
     Gender: getValue(row, ["Gender"]),
-    Ethnicity: getValue(row, ["Ethnicity"]),
+    Ethnicity: getValue(row, ["Ethnicity", "Race/Ethnicity", "Race Ethnicity"]),
+    Race_Ethnicity: getValue(row, ["Race/Ethnicity", "Race Ethnicity", "Ethnicity"]),
     Dietary_Restrictions: getValue(row, ["Dietary Restrictions", "Dietary_Restrictions"]),
     Hispanic_Latino_Or_Spanish: getValue(row, [
       "Hispanic, Latino Or Spanish",
@@ -128,6 +129,7 @@ function normalizeSpreadsheetRows(rows: SpreadsheetRow[]) {
       "Last Activity Date",
     ]),
     Age_1: getValue(row, ["Age_1", "Age.1", "Age Group", "Age Range"]),
+    Age_Group: getValue(row, ["Age Group", "Age Range", "Age_1", "Age.1"]),
   }));
 }
 

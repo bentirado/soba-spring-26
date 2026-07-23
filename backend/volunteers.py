@@ -24,11 +24,13 @@ class UploadedVolunteerRow(BaseModel):
     Age: Optional[str] = None
     Gender: Optional[str] = None
     Ethnicity: Optional[str] = None
+    Race_Ethnicity: Optional[str] = None
     Dietary_Restrictions: Optional[str] = None
     Hispanic_Latino_Or_Spanish: Optional[str] = None
     Life_Hours: Optional[str] = None
     Date_Of_Last_Activity: Optional[str] = None  # mapped to last_activity
     Age_1: Optional[str] = None
+    Age_Group: Optional[str] = None
 
 
 class VolunteerUploadRequest(BaseModel):
@@ -97,6 +99,30 @@ def parse_uploaded_int(raw_value: Optional[str]) -> Optional[int]:
         return int(float(raw_value.strip().replace(",", "").replace("$", "")))
     except ValueError:
         return None
+
+
+def clean_uploaded_text(raw_value: Optional[str]) -> Optional[str]:
+    if not raw_value or not raw_value.strip():
+        return None
+    return " ".join(raw_value.strip().split())
+
+
+def age_group_from_age(age: Optional[int]) -> Optional[str]:
+    if age is None or age <= 0:
+        return None
+    if age < 16:
+        return "Under 16"
+    if age <= 24:
+        return "16-24 years old"
+    if age <= 34:
+        return "25-34 years old"
+    if age <= 44:
+        return "35-44 years old"
+    if age <= 54:
+        return "45-54 years old"
+    if age <= 64:
+        return "55-64 years old"
+    return "65+ years old"
 
 
 def parse_hispanic_latino(raw_value: Optional[str]) -> Optional[str]:
@@ -209,19 +235,21 @@ async def upload_volunteers(
 
     volunteers_to_insert = []
     for index, row in enumerate(payload.rows, start=1):
+        parsed_age = parse_uploaded_int(row.Age)
+        uploaded_age_group = clean_uploaded_text(row.Age_1) or clean_uploaded_text(row.Age_Group)
         volunteers_to_insert.append(
             Volunteer(
                 first_name="Volunteer",
                 last_name=f"#{index:03d}",
-                city=row.City or None,
+                city=clean_uploaded_text(row.City),
                 state=(row.State or "OK").strip().upper(),
-                zip=row.Zip or None,
-                age=parse_uploaded_int(row.Age),
-                age_group=row.Age_1 or None,
-                gender=row.Gender or None,
-                ethnicity=row.Ethnicity or None,
+                zip=clean_uploaded_text(row.Zip),
+                age=parsed_age,
+                age_group=uploaded_age_group or age_group_from_age(parsed_age),
+                gender=clean_uploaded_text(row.Gender),
+                ethnicity=clean_uploaded_text(row.Ethnicity) or clean_uploaded_text(row.Race_Ethnicity),
                 hispanic_latino=parse_hispanic_latino(row.Hispanic_Latino_Or_Spanish),
-                dietary_restrictions=row.Dietary_Restrictions or "None",
+                dietary_restrictions=clean_uploaded_text(row.Dietary_Restrictions) or "None",
                 life_hours=parse_uploaded_float(row.Life_Hours),
                 last_activity=parse_uploaded_date(row.Date_Of_Last_Activity),
                 is_active=True,
