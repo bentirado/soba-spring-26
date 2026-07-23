@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from "react";
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -165,25 +165,6 @@ export function SignIn() {
                 />
               </div>
 
-              <div className="flex items-center justify-between text-sm pt-1">
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    className="rounded border-2 border-gray-300 bg-white w-4 h-4"
-                  />
-                  <span className="text-gray-600">Remember me</span>
-                </label>
-
-                <a
-                  href="#"
-                  onClick={(event) => event.preventDefault()}
-                  className="text-sm hover:underline"
-                  style={{ color: "#FF6B35" }}
-                >
-                  Forgot password?
-                </a>
-              </div>
-
               <Button
                 type="submit"
                 disabled={isSubmitting || Boolean(configError)}
@@ -193,17 +174,6 @@ export function SignIn() {
                 {isSubmitting ? "Logging in..." : "Login"}
               </Button>
             </form>
-
-            <div className="mt-6 text-center text-sm border-t pt-4 border-gray-200">
-              <span className="text-gray-600">Don't have an account? </span>
-              <Link
-                to="/signup"
-                className="hover:underline font-medium"
-                style={{ color: "#FF6B35" }}
-              >
-                Sign up
-              </Link>
-            </div>
           </CardContent>
         </Card>
       </div>

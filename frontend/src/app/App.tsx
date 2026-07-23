@@ -4,7 +4,6 @@ import { Overview } from "../features/overview/Overview";
 import { Volunteers } from "../features/volunteers/Volunteers";
 import { Recognition } from "../features/recognition/Recognition";
 import { SignIn } from "../features/auth/SignIn";
-import { SignUp } from "../features/auth/SignUp";
 import { AuthProvider } from "../features/auth/AuthProvider";
 import { ProtectedRoute } from "../features/auth/ProtectedRoute";
 
@@ -18,7 +17,6 @@ export default function App() {
 
           {/* Auth routes */}
           <Route path="/signin" element={<SignIn />} />
-          <Route path="/signup" element={<SignUp />} />
 
           {/* Dashboard routes - keep at root but make them work */}
           <Route
