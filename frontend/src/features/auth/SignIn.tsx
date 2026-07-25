@@ -80,7 +80,7 @@ export function SignIn() {
         <div className="relative z-10">
           <h2 className="text-4xl font-bold mb-4">Welcome Back!</h2>
           <p className="text-lg opacity-90 max-w-md">
-            Access your volunteer analytics and insights, and track your impact seamlessly
+            Access your volunteer analytics and insights, and track your impact seamlessly!
           </p>
         </div>
 
