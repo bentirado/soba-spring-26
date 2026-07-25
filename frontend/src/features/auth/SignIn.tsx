@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -163,6 +163,16 @@ export function SignIn() {
                     } as React.CSSProperties
                   }
                 />
+              </div>
+
+              <div className="flex justify-end pt-1 text-sm">
+                <Link
+                  to="/forgot-password"
+                  className="hover:underline"
+                  style={{ color: "#FF6B35" }}
+                >
+                  Forgot password?
+                </Link>
               </div>
 
               <Button
