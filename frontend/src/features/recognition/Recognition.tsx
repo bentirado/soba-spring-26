@@ -13,6 +13,7 @@ import {
 import { apiFetch, requireOk } from "@/lib/api";
 import { generateInsight as generateAiInsight } from "@/lib/insights";
 import { useDashboardRange } from "@/features/dashboard/DashboardRangeProvider";
+import { DashboardRangeSelect } from "@/features/dashboard/DashboardRangeSelect";
 
 type Volunteer = {
   id: number;
@@ -209,19 +210,22 @@ export function Recognition() {
           </p>
         </div>
 
-        <button
-          type="button"
-          onClick={generateInsight}
-          disabled={rankedVolunteers.length === 0 || insightLoading}
-          className="inline-flex items-center justify-center rounded-lg border border-amber-200 bg-amber-50 px-4 py-2 text-sm font-medium text-amber-700 transition hover:bg-amber-100 disabled:cursor-not-allowed disabled:brightness-95"
-        >
-          {insightLoading ? (
-            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-          ) : (
-            <Sparkles className="mr-2 h-4 w-4" />
-          )}
-          {insightLoading ? "Generating..." : "AI"}
-        </button>
+        <div className="flex flex-wrap items-center gap-3">
+          <DashboardRangeSelect />
+          <button
+            type="button"
+            onClick={generateInsight}
+            disabled={rankedVolunteers.length === 0 || insightLoading}
+            className="inline-flex items-center justify-center rounded-lg border border-amber-200 bg-amber-50 px-4 py-2 text-sm font-medium text-amber-700 transition hover:bg-amber-100 disabled:cursor-not-allowed disabled:brightness-95"
+          >
+            {insightLoading ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <Sparkles className="mr-2 h-4 w-4" />
+            )}
+            {insightLoading ? "Generating..." : "AI"}
+          </button>
+        </div>
       </div>
 
       {loading && (

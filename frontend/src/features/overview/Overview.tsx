@@ -8,6 +8,7 @@ import { FileText, Users, Clock3, Cake, MapPin, DollarSign, AlertCircle, Loader2
 import { apiFetch, requireOk } from "@/lib/api";
 import { generateInsight as generateAiInsight } from "@/lib/insights";
 import { useDashboardRange } from "@/features/dashboard/DashboardRangeProvider";
+import { DashboardRangeSelect } from "@/features/dashboard/DashboardRangeSelect";
 const defaultVolunteerHourlyValue = 30.63;
 const lastActivityChartStorageKey = "lastActivityChartType";
 const cityChartStorageKey = "cityChartType";
@@ -935,6 +936,7 @@ export function Overview() {
         </div>
 
         <div className="flex flex-wrap items-center gap-3">
+            <DashboardRangeSelect />
             <button
               onClick={handleGenerateReportClick}
               disabled={loading || !overview || reportGenerating}

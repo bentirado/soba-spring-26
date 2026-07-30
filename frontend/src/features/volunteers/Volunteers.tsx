@@ -30,6 +30,7 @@ import * as XLSX from "xlsx";
 import { apiFetch, requireOk } from "@/lib/api";
 import { generateInsight as generateAiInsight } from "@/lib/insights";
 import { useDashboardRange } from "@/features/dashboard/DashboardRangeProvider";
+import { DashboardRangeSelect } from "@/features/dashboard/DashboardRangeSelect";
 
 type Volunteer = {
   id: number;
@@ -717,6 +718,7 @@ export function Volunteers() {
         </div>
 
         <div className="flex flex-wrap items-center gap-3">
+          <DashboardRangeSelect />
           <button
             onClick={handleImportUploadClick}
             disabled={importUploading}
