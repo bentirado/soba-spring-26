@@ -1,20 +1,13 @@
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import LastActivityChart from "@/components/LastActivityChart";
 import DashboardStatCard from "@/components/StatCard";
 import VolunteersByCityBarChart from "@/components/VolunteersByCityBarChart";
 import VolunteersByGenderPieChart from "@/components/VolunteersByGenderPieChart";
 import VolunteerBreakdownChart from "@/components/VolunteerBreakdownChart";
-import { FileText, ChevronDown, Users, Clock3, Cake, MapPin, DollarSign, AlertCircle, Loader2, HelpCircle, Sparkles } from "lucide-react";
+import { FileText, Users, Clock3, Cake, MapPin, DollarSign, AlertCircle, Loader2, HelpCircle, Sparkles } from "lucide-react";
 import { apiFetch, requireOk } from "@/lib/api";
 import { generateInsight as generateAiInsight } from "@/lib/insights";
-
-const rangeOptions = ["All Time", "Last 3 Years", "This Year", "This Quarter"];
-const rangeParamByLabel: Record<string, string> = {
-  "All Time": "all_time",
-  "Last 3 Years": "last_3_years",
-  "This Year": "this_year",
-  "This Quarter": "this_quarter",
-};
+import { useDashboardRange } from "@/features/dashboard/DashboardRangeProvider";
 const defaultVolunteerHourlyValue = 30.63;
 const lastActivityChartStorageKey = "lastActivityChartType";
 const cityChartStorageKey = "cityChartType";
@@ -162,6 +155,40 @@ function getReportWeekdayIndex(value: string | null) {
   return Number.isNaN(date.getTime()) ? null : date.getDay();
 }
 
+function getReportRangeStartDate(selectedRangeParam: string) {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  if (selectedRangeParam === "last_3_years") {
+    return new Date(today.getFullYear() - 3, today.getMonth(), today.getDate());
+  }
+
+  if (selectedRangeParam === "this_year") {
+    return new Date(today.getFullYear(), 0, 1);
+  }
+
+  if (selectedRangeParam === "this_quarter") {
+    const quarterStartMonth = Math.floor(today.getMonth() / 3) * 3;
+    return new Date(today.getFullYear(), quarterStartMonth, 1);
+  }
+
+  return null;
+}
+
+function isReportVolunteerInRange(lastActivity: string | null, selectedRangeParam: string) {
+  if (selectedRangeParam === "all_time") return true;
+  if (!lastActivity) return false;
+
+  const activityDate = new Date(`${lastActivity}T00:00:00`);
+  if (Number.isNaN(activityDate.getTime())) return false;
+
+  const today = new Date();
+  today.setHours(23, 59, 59, 999);
+  const rangeStartDate = getReportRangeStartDate(selectedRangeParam);
+
+  return rangeStartDate ? activityDate >= rangeStartDate && activityDate <= today : true;
+}
+
 function formatReportDate(value: string | null) {
   if (!value) return "-";
   const date = new Date(`${value}T00:00:00`);
@@ -218,11 +245,7 @@ function ChartPanel({
 }
 
 export function Overview() {
-  const rangeDropdownRef = useRef<HTMLDivElement | null>(null);
-
-  const [rangeOpen, setRangeOpen] = useState(false);
-
-  const [selectedRange, setSelectedRange] = useState("All Time");
+  const { selectedRange, selectedRangeParam } = useDashboardRange();
   const [overview, setOverview] = useState<OverviewData | null>(null);
   const [lastActivityData, setLastActivityData] = useState<LastActivityPoint[]>([]);
   const [genderData, setGenderData] = useState<GenderBreakdownPoint[]>([]);
@@ -274,21 +297,6 @@ export function Overview() {
   const refreshDashboard = () => {
     setDashboardRefreshToken((currentValue) => currentValue + 1);
   };
-
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      const target = event.target as Node;
-
-      if (rangeDropdownRef.current && !rangeDropdownRef.current.contains(target)) {
-        setRangeOpen(false);
-      }
-    };
-
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
-  }, []);
 
   const chronologicalLastActivityData = [...lastActivityData].sort((firstItem, secondItem) =>
     firstItem.month.localeCompare(secondItem.month),
@@ -405,7 +413,6 @@ export function Overview() {
       ]
     : [];
   const estimatedValue = overview ? overview.hours_logged * volunteerHourlyValue : null;
-  const selectedRangeParam = rangeParamByLabel[selectedRange] ?? "all_time";
 
   const handleGenerateReportClick = async () => {
     if (!overview || loading || reportGenerating) {
@@ -418,7 +425,9 @@ export function Overview() {
 
       const volunteersResponse = await apiFetch("/api/volunteers");
       await requireOk(volunteersResponse, "Failed to fetch volunteer dataset for report.");
-      const reportVolunteers = (await volunteersResponse.json()) as ReportVolunteer[];
+      const reportVolunteers = ((await volunteersResponse.json()) as ReportVolunteer[]).filter((volunteer) =>
+        isReportVolunteerInRange(volunteer.last_activity, selectedRangeParam),
+      );
 
       const generatedAt = new Date();
       const generatedDate = generatedAt.toLocaleDateString([], { month: "long", day: "numeric", year: "numeric" });
@@ -573,7 +582,7 @@ export function Overview() {
   </head>
   <body>
     <h1>Science Museum Oklahoma Comprehensive Volunteer Report</h1>
-    <p class="muted">Generated ${escapeHtml(generatedDate)} at ${escapeHtml(generatedTime)}. Overview range: ${escapeHtml(selectedRange)}. Volunteer and recognition sections use the full active uploaded spreadsheet.</p>
+    <p class="muted">Generated ${escapeHtml(generatedDate)} at ${escapeHtml(generatedTime)}. Selected range: ${escapeHtml(selectedRange)}. Volunteer and recognition sections use matching records from the active uploaded spreadsheet.</p>
 
     <section class="summary">
       <div class="card"><div class="label">Total Volunteers</div><div class="value">${overview.total_volunteers.toLocaleString()}</div></div>
@@ -925,40 +934,7 @@ export function Overview() {
           <p className="text-sm text-gray-500">Key metrics and performance indicators for volunteer engagement</p>
         </div>
 
-        <div className="flex flex-col items-start gap-3 xl:items-end">
-          {/* First row */}
-          <div className="flex flex-wrap items-center gap-3">
-            {/* Date Range */}
-            <div className="relative" ref={rangeDropdownRef}>
-              <button
-                onClick={() => setRangeOpen((prev) => !prev)}
-                className="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm transition hover:bg-gray-50"
-              >
-                <span>{selectedRange}</span>
-                <ChevronDown className={`h-4 w-4 transition-transform ${rangeOpen ? "rotate-180" : ""}`} />
-              </button>
-
-              {rangeOpen && (
-                <div className="absolute right-0 z-20 mt-2 w-44 overflow-hidden rounded-lg border border-gray-200 bg-white shadow-lg">
-                  {rangeOptions.map((option) => (
-                    <button
-                      key={option}
-                      onClick={() => {
-                        setSelectedRange(option);
-                        setRangeOpen(false);
-                      }}
-                      className={`w-full px-4 py-3 text-left text-sm transition ${
-                        selectedRange === option ? "bg-blue-600 text-white" : "text-gray-700 hover:bg-gray-50"
-                      }`}
-                    >
-                      {option}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* Generate Report */}
+        <div className="flex flex-wrap items-center gap-3">
             <button
               onClick={handleGenerateReportClick}
               disabled={loading || !overview || reportGenerating}
@@ -967,8 +943,6 @@ export function Overview() {
               {reportGenerating ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileText className="h-4 w-4" />}
               {reportGenerating ? "Generating..." : "Generate Report"}
             </button>
-
-          </div>
         </div>
       </div>
 

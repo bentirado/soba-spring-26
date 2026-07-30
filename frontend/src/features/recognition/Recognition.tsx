@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { apiFetch, requireOk } from "@/lib/api";
 import { generateInsight as generateAiInsight } from "@/lib/insights";
+import { useDashboardRange } from "@/features/dashboard/DashboardRangeProvider";
 
 type Volunteer = {
   id: number;
@@ -21,6 +22,7 @@ type Volunteer = {
   city: string | null;
   state: string;
   life_hours: number | null;
+  last_activity: string | null;
 };
 
 type RankedVolunteer = Volunteer & {
@@ -71,7 +73,42 @@ function rankVolunteers(volunteers: Volunteer[]) {
     });
 }
 
+function getRangeStartDate(selectedRangeParam: string) {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  if (selectedRangeParam === "last_3_years") {
+    return new Date(today.getFullYear() - 3, today.getMonth(), today.getDate());
+  }
+
+  if (selectedRangeParam === "this_year") {
+    return new Date(today.getFullYear(), 0, 1);
+  }
+
+  if (selectedRangeParam === "this_quarter") {
+    const quarterStartMonth = Math.floor(today.getMonth() / 3) * 3;
+    return new Date(today.getFullYear(), quarterStartMonth, 1);
+  }
+
+  return null;
+}
+
+function isVolunteerInRange(lastActivity: string | null, selectedRangeParam: string) {
+  if (selectedRangeParam === "all_time") return true;
+  if (!lastActivity) return false;
+
+  const activityDate = new Date(`${lastActivity}T00:00:00`);
+  if (Number.isNaN(activityDate.getTime())) return false;
+
+  const today = new Date();
+  today.setHours(23, 59, 59, 999);
+  const rangeStartDate = getRangeStartDate(selectedRangeParam);
+
+  return rangeStartDate ? activityDate >= rangeStartDate && activityDate <= today : true;
+}
+
 export function Recognition() {
+  const { selectedRange, selectedRangeParam } = useDashboardRange();
   const [volunteers, setVolunteers] = useState<Volunteer[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -100,18 +137,22 @@ export function Recognition() {
     fetchVolunteers();
   }, []);
 
-  const rankedVolunteers = useMemo(() => rankVolunteers(volunteers), [volunteers]);
+  const rangeFilteredVolunteers = useMemo(
+    () => volunteers.filter((volunteer) => isVolunteerInRange(volunteer.last_activity, selectedRangeParam)),
+    [selectedRangeParam, volunteers],
+  );
+  const rankedVolunteers = useMemo(() => rankVolunteers(rangeFilteredVolunteers), [rangeFilteredVolunteers]);
   const podium = rankedVolunteers.slice(0, 3);
   const topTen = rankedVolunteers.slice(0, 10);
-  const totalHours = volunteers.reduce((sum, volunteer) => sum + (volunteer.life_hours ?? 0), 0);
+  const totalHours = rangeFilteredVolunteers.reduce((sum, volunteer) => sum + (volunteer.life_hours ?? 0), 0);
   const volunteersWithHours = rankedVolunteers.length;
-  const averageHours = volunteers.length ? totalHours / volunteers.length : 0;
+  const averageHours = rangeFilteredVolunteers.length ? totalHours / rangeFilteredVolunteers.length : 0;
   const topContributor = rankedVolunteers[0] ?? null;
-  const hundredHourCount = volunteers.filter((volunteer) => (volunteer.life_hours ?? 0) >= 100).length;
+  const hundredHourCount = rangeFilteredVolunteers.filter((volunteer) => (volunteer.life_hours ?? 0) >= 100).length;
 
   const tierData = contributionTiers.map((tier) => ({
     ...tier,
-    count: volunteers.filter((volunteer) => {
+    count: rangeFilteredVolunteers.filter((volunteer) => {
       const hours = volunteer.life_hours ?? 0;
       return hours >= tier.min && hours < tier.max;
     }).length,
@@ -126,7 +167,7 @@ export function Recognition() {
       const insight = await generateAiInsight({
         page: "Recognition",
         subject: "Contribution Analytics",
-        context: "Analyze lifetime hours, top contributors, milestone groups, and contribution tiers from the active uploaded spreadsheet.",
+        context: `Selected range: ${selectedRange}. Analyze lifetime hours, top contributors, milestone groups, and contribution tiers from the active uploaded spreadsheet.`,
         data: {
           totalHours,
           volunteersWithHours,
@@ -153,7 +194,7 @@ export function Recognition() {
   useEffect(() => {
     setGeneratedInsight("");
     setInsightLoading(false);
-  }, [volunteers]);
+  }, [rangeFilteredVolunteers, selectedRangeParam]);
 
   return (
     <div className="space-y-6">
@@ -281,7 +322,7 @@ export function Recognition() {
 
           <div className="mt-6 space-y-4">
             {tierData.map((tier) => {
-              const percent = volunteers.length ? Math.round((tier.count / volunteers.length) * 100) : 0;
+              const percent = rangeFilteredVolunteers.length ? Math.round((tier.count / rangeFilteredVolunteers.length) * 100) : 0;
               return (
                 <div key={tier.label}>
                   <div className="mb-1 flex items-center justify-between text-sm">
@@ -299,7 +340,7 @@ export function Recognition() {
 
         <section className="grid grid-cols-1 gap-4">
           {milestoneCards.map((milestone) => {
-            const count = volunteers.filter((volunteer) => (volunteer.life_hours ?? 0) >= milestone.threshold).length;
+            const count = rangeFilteredVolunteers.filter((volunteer) => (volunteer.life_hours ?? 0) >= milestone.threshold).length;
             const Icon = milestone.icon;
             return (
               <div key={milestone.label} className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">

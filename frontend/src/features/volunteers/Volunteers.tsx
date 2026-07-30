@@ -29,6 +29,7 @@ import {
 import * as XLSX from "xlsx";
 import { apiFetch, requireOk } from "@/lib/api";
 import { generateInsight as generateAiInsight } from "@/lib/insights";
+import { useDashboardRange } from "@/features/dashboard/DashboardRangeProvider";
 
 type Volunteer = {
   id: number;
@@ -168,6 +169,40 @@ function hasValue(value: string | number | null | undefined) {
   return Boolean(value?.trim());
 }
 
+function getRangeStartDate(selectedRangeParam: string) {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  if (selectedRangeParam === "last_3_years") {
+    return new Date(today.getFullYear() - 3, today.getMonth(), today.getDate());
+  }
+
+  if (selectedRangeParam === "this_year") {
+    return new Date(today.getFullYear(), 0, 1);
+  }
+
+  if (selectedRangeParam === "this_quarter") {
+    const quarterStartMonth = Math.floor(today.getMonth() / 3) * 3;
+    return new Date(today.getFullYear(), quarterStartMonth, 1);
+  }
+
+  return null;
+}
+
+function isVolunteerInRange(lastActivity: string | null, selectedRangeParam: string) {
+  if (selectedRangeParam === "all_time") return true;
+  if (!lastActivity) return false;
+
+  const activityDate = new Date(`${lastActivity}T00:00:00`);
+  if (Number.isNaN(activityDate.getTime())) return false;
+
+  const today = new Date();
+  today.setHours(23, 59, 59, 999);
+  const rangeStartDate = getRangeStartDate(selectedRangeParam);
+
+  return rangeStartDate ? activityDate >= rangeStartDate && activityDate <= today : true;
+}
+
 function getVolunteerDisplayName(volunteer: Volunteer) {
   if (volunteer.first_name === "Spreadsheet" && volunteer.last_name.startsWith("Row ")) {
     const rowNumber = Number(volunteer.last_name.replace("Row ", ""));
@@ -212,6 +247,7 @@ function downloadCsv(volunteers: Volunteer[]) {
 }
 
 export function Volunteers() {
+  const { selectedRange, selectedRangeParam } = useDashboardRange();
   const metricDropdownRef = useRef<HTMLDivElement | null>(null);
   const chartDropdownRef = useRef<HTMLDivElement | null>(null);
   const importFileInputRef = useRef<HTMLInputElement | null>(null);
@@ -266,9 +302,14 @@ export function Volunteers() {
     fetchVolunteers();
   }, []);
 
+  const rangeFilteredVolunteers = useMemo(
+    () => volunteers.filter((volunteer) => isVolunteerInRange(volunteer.last_activity, selectedRangeParam)),
+    [selectedRangeParam, volunteers],
+  );
+
   const filteredVolunteers = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
-    return volunteers.filter((volunteer) => {
+    return rangeFilteredVolunteers.filter((volunteer) => {
       const searchableText = [
         volunteer.first_name,
         volunteer.last_name,
@@ -284,7 +325,7 @@ export function Volunteers() {
 
       return !query || searchableText.includes(query);
     });
-  }, [searchQuery, volunteers]);
+  }, [rangeFilteredVolunteers, searchQuery]);
 
   const sortedVolunteers = useMemo(() => {
     const sorted = [...filteredVolunteers];
@@ -325,16 +366,16 @@ export function Volunteers() {
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchQuery, sortBy]);
+  }, [searchQuery, selectedRangeParam, sortBy]);
 
   useEffect(() => {
     setCurrentPage((page) => Math.min(page, totalPages));
   }, [totalPages]);
 
-  const totalVolunteers = volunteers.length;
-  const totalHours = volunteers.reduce((sum, volunteer) => sum + (volunteer.life_hours ?? 0), 0);
+  const totalVolunteers = rangeFilteredVolunteers.length;
+  const totalHours = rangeFilteredVolunteers.reduce((sum, volunteer) => sum + (volunteer.life_hours ?? 0), 0);
   const averageHours = totalVolunteers ? totalHours / totalVolunteers : 0;
-  const completenessFields = volunteers.flatMap((volunteer) => [
+  const completenessFields = rangeFilteredVolunteers.flatMap((volunteer) => [
     volunteer.city,
     volunteer.state,
     volunteer.zip,
@@ -348,7 +389,7 @@ export function Volunteers() {
   const dataCompletenessPercent = completenessFields.length
     ? Math.round((filledCompletenessFields / completenessFields.length) * 100)
     : 0;
-  const mostRecentActivity = volunteers.reduce<string | null>((currentLatest, volunteer) => {
+  const mostRecentActivity = rangeFilteredVolunteers.reduce<string | null>((currentLatest, volunteer) => {
     if (!volunteer.last_activity) return currentLatest;
     if (!currentLatest || volunteer.last_activity > currentLatest) return volunteer.last_activity;
     return currentLatest;
@@ -357,7 +398,7 @@ export function Volunteers() {
   const weeklyActivityData = useMemo(() => {
     const weekdays = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
     const buckets = weekdays.map((day) => ({ day, volunteers: 0, hours: 0, participation: 0 }));
-    volunteers.forEach((volunteer) => {
+    rangeFilteredVolunteers.forEach((volunteer) => {
       const dayIndex = getWeekdayIndex(volunteer.last_activity);
       if (dayIndex == null) return;
       buckets[dayIndex].volunteers += 1;
@@ -368,7 +409,7 @@ export function Volunteers() {
       hours: Number(bucket.hours.toFixed(1)),
       participation: totalVolunteers ? Math.round((bucket.volunteers / totalVolunteers) * 100) : 0,
     }));
-  }, [totalVolunteers, volunteers]);
+  }, [rangeFilteredVolunteers, totalVolunteers]);
 
   const mostActiveDay = weeklyActivityData.reduce(
     (current, next) => (next.volunteers > current.volunteers ? next : current),
@@ -377,20 +418,20 @@ export function Volunteers() {
 
   const lastActivityByMonthData = useMemo(() => {
     const buckets = monthLabels.map((month) => ({ month, volunteers: 0, hours: 0 }));
-    volunteers.forEach((volunteer) => {
+    rangeFilteredVolunteers.forEach((volunteer) => {
       const monthIndex = getMonthIndex(volunteer.last_activity);
       if (monthIndex == null) return;
       buckets[monthIndex].volunteers += 1;
       buckets[monthIndex].hours += volunteer.life_hours ?? 0;
     });
     return buckets.map((bucket) => ({ ...bucket, hours: Number(bucket.hours.toFixed(1)) }));
-  }, [volunteers]);
+  }, [rangeFilteredVolunteers]);
 
   const activityYearComparisonData = useMemo(() => {
     const currentYear = new Date().getFullYear();
     const previousYear = currentYear - 1;
     const buckets = monthLabels.map((month) => ({ month, currentYear: 0, previousYear: 0 }));
-    volunteers.forEach((volunteer) => {
+    rangeFilteredVolunteers.forEach((volunteer) => {
       if (!volunteer.last_activity) return;
       const activityDate = new Date(`${volunteer.last_activity}T00:00:00`);
       if (Number.isNaN(activityDate.getTime())) return;
@@ -404,7 +445,7 @@ export function Volunteers() {
       currentYear: Number(bucket.currentYear.toFixed(1)),
       previousYear: Number(bucket.previousYear.toFixed(1)),
     }));
-  }, [volunteers]);
+  }, [rangeFilteredVolunteers]);
   const busiestActivityMonth = lastActivityByMonthData.reduce(
     (current, next) => (next.volunteers > current.volunteers ? next : current),
     lastActivityByMonthData[0],
@@ -435,7 +476,7 @@ export function Volunteers() {
 
   const ageDistributionData = useMemo(() => {
     const counts = new Map<string, number>();
-    volunteers.forEach((volunteer) => {
+    rangeFilteredVolunteers.forEach((volunteer) => {
       const group = getAgeGroup(volunteer);
       counts.set(group, (counts.get(group) ?? 0) + 1);
     });
@@ -444,7 +485,7 @@ export function Volunteers() {
       volunteers: count,
       color: ageColors[index % ageColors.length],
     }));
-  }, [volunteers]);
+  }, [rangeFilteredVolunteers]);
 
   const largestAgeGroup = ageDistributionData.reduce(
     (current, next) => (next.volunteers > current.volunteers ? next : current),
@@ -547,7 +588,7 @@ export function Volunteers() {
       const insight = await generateAiInsight({
         page: "Volunteers",
         subject: "Last Activity By Weekday",
-        context: `Selected metric in the UI: ${selectedMetricLabel}. Based on each volunteer's latest recorded activity date.`,
+        context: `Selected range: ${selectedRange}. Selected metric in the UI: ${selectedMetricLabel}. Based on each volunteer's latest recorded activity date.`,
         data: weeklyActivityData,
       });
       setGeneratedWeekdayInsight(insight);
@@ -566,7 +607,7 @@ export function Volunteers() {
       const insight = await generateAiInsight({
         page: "Volunteers",
         subject: "Last Activity by Month",
-        context: "Uploaded records grouped by latest activity month, with lifetime hours layered in.",
+        context: `Selected range: ${selectedRange}. Uploaded records grouped by latest activity month, with lifetime hours layered in.`,
         data: lastActivityByMonthData,
       });
       setGeneratedMonthlyInsight(insight);
@@ -585,7 +626,7 @@ export function Volunteers() {
       const insight = await generateAiInsight({
         page: "Volunteers",
         subject: "Activity Hours by Year",
-        context: `Compare lifetime hours grouped by latest activity month. This year total: ${currentYearHours}. Previous year total: ${previousYearHours}.`,
+        context: `Selected range: ${selectedRange}. Compare lifetime hours grouped by latest activity month. This year total: ${currentYearHours}. Previous year total: ${previousYearHours}.`,
         data: activityYearComparisonData,
       });
       setGeneratedYearInsight(insight);
@@ -604,7 +645,7 @@ export function Volunteers() {
       const insight = await generateAiInsight({
         page: "Volunteers",
         subject: "Age Distribution",
-        context: `Total uploaded records: ${totalVolunteers}. Explain the age distribution without assuming why it exists.`,
+        context: `Selected range: ${selectedRange}. Total records in range: ${totalVolunteers}. Explain the age distribution without assuming why it exists.`,
         data: ageDistributionData.map(({ group, volunteers }) => ({ group, volunteers })),
       });
       setGeneratedAgeInsight(insight);
@@ -624,7 +665,7 @@ export function Volunteers() {
     setWeekdayInsightLoading(false);
     setGeneratedAgeInsight("");
     setAgeInsightLoading(false);
-  }, [volunteers]);
+  }, [rangeFilteredVolunteers, selectedRangeParam]);
 
   const handleImportUploadClick = () => {
     importFileInputRef.current?.click();

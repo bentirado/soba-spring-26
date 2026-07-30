@@ -8,6 +8,7 @@ import { ForgotPassword } from "../features/auth/ForgotPassword";
 import { ResetPassword } from "../features/auth/ResetPassword";
 import { AuthProvider } from "../features/auth/AuthProvider";
 import { ProtectedRoute } from "../features/auth/ProtectedRoute";
+import { DashboardRangeProvider } from "../features/dashboard/DashboardRangeProvider";
 
 export default function App() {
   return (
@@ -27,7 +28,9 @@ export default function App() {
             path="/dashboard"
             element={
               <ProtectedRoute>
-                <DashboardLayout />
+                <DashboardRangeProvider>
+                  <DashboardLayout />
+                </DashboardRangeProvider>
               </ProtectedRoute>
             }
           >
