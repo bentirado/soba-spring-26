@@ -87,7 +87,7 @@ export function SignIn() {
         <div className="relative z-10">
           <div className="h-1 w-12 bg-white opacity-50 mb-6" />
           <h1 className="text-xl font-semibold mb-1">
-            Science Museum of Oklahoma
+            Science Museum Oklahoma
           </h1>
           <p className="text-sm opacity-80">Analytics Dashboard</p>
         </div>

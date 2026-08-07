@@ -55,7 +55,7 @@ export function DashboardLayout() {
                 <h1 className="text-lg font-semibold text-white">
                   Science Museum
                 </h1>
-                <p className="text-xs text-white/75">of Oklahoma</p>
+                <p className="text-xs text-white/75">Oklahoma</p>
               </div>
             </div>
           </div>

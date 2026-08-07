@@ -95,7 +95,7 @@ export function SignUp() {
 
         <div className="relative z-10">
           <h1 className="text-3xl font-bold mb-2">
-            Science Museum of Oklahoma
+            Science Museum Oklahoma
           </h1>
           <p className="text-lg opacity-90">Analytics Dashboard</p>
         </div>

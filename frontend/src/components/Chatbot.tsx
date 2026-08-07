@@ -30,7 +30,7 @@ const WELCOME_MESSAGE: Message = {
   id: "welcome",
   role: "assistant",
   content:
-    "Hello! I'm Binjow, your Science Museum of Oklahoma assistant. I can help you navigate the platform and find what you need. How can I help you today?",
+    "Hello! I'm Binjow, your Science Museum Oklahoma assistant. I can help you navigate the platform and find what you need. How can I help you today?",
   timestamp: new Date(),
   suggestions: [
     "How do I upload data?",

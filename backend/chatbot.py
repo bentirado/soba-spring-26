@@ -61,7 +61,7 @@ async def load_live_stats(db: AsyncSession) -> str:
 # System prompt
 # ---------------------------------------------------------------------------
 
-PROMPT_INTRO = """You are BINJOW, an AI assistant for the Science Museum of Oklahoma volunteer management platform.
+PROMPT_INTRO = """You are BINJOW, an AI assistant for the Science Museum Oklahoma volunteer management platform.
 Your role is to help users navigate and use the platform accurately and clearly.
 
 The platform is a web-based analytics dashboard for managing and tracking museum volunteers.
